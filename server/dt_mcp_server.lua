@@ -80,6 +80,15 @@ local function image_to_metadata(img)
   }
 end
 
+local function command_exists(cmd)
+  local check_cmd = string.format("command -v %s >/dev/null 2>&1", cmd)
+  local result = os.execute(check_cmd)
+  if type(result) == "number" then
+    return result == 0
+  end
+  return result == true
+end
+
 --------------------------------------------------
 -- 4. Ferramentas MCP (lado darktable)
 --------------------------------------------------
@@ -298,8 +307,36 @@ local function tool_export_collection(args)
     }
   end
 
-  local format    = args.format or "jpg"
+  if type(target_dir) ~= "string" or target_dir == "" then
+    return {
+      content = { { type = "text", text = "target_dir deve ser string não vazia" } },
+      isError = true
+    }
+  end
+
+  if target_dir:find("\n") or target_dir:find("\r") then
+    return {
+      content = { { type = "text", text = "target_dir não pode conter quebras de linha" } },
+      isError = true
+    }
+  end
+
+  local format    = (args.format or "jpg"):lower()
   local overwrite = args.overwrite or false
+
+  if not format:match("^[%w]+$") then
+    return {
+      content = { { type = "text", text = "format deve conter apenas letras/números" } },
+      isError = true
+    }
+  end
+
+  if not command_exists("darktable-cli") then
+    return {
+      content = { { type = "text", text = "darktable-cli não encontrado no PATH" } },
+      isError = true
+    }
+  end
 
   -- garantir que target_dir existe
   os.execute(string.format('mkdir -p "%s"', target_dir))
@@ -322,6 +359,7 @@ local function tool_export_collection(args)
   end
 
   local exported = 0
+  local errors = {}
   for _, img in ipairs(to_export) do
     local input = img.path .. "/" .. img.filename
 
@@ -340,17 +378,45 @@ local function tool_export_collection(args)
 
     -- comando simples; ajuste flags conforme sua necessidade
     local cmd = string.format('darktable-cli "%s" "%s"', input, out)
-    os.execute(cmd)
-    exported = exported + 1
+    local ok, _, status = os.execute(cmd)
+    local success = (type(ok) == "number" and ok == 0) or ok == true
+    local exit_code = status or ok
+
+    if success then
+      exported = exported + 1
+    else
+      table.insert(errors, {
+        id = img.id,
+        input = input,
+        output = out,
+        command = cmd,
+        exit = exit_code,
+      })
+      io.stderr:write(string.format(
+        "[export_collection] falha exportando id=%s exit=%s\n",
+        tostring(img.id),
+        tostring(exit_code)
+      ))
+    end
 
     ::continue::
   end
 
+  local summary = string.format("Exportadas %d imagens para %s", exported, target_dir)
+  if #errors > 0 then
+    summary = string.format("%s (%d falharam)", summary, #errors)
+  end
+
+  local content = {
+    { type = "text", text = summary }
+  }
+  if #errors > 0 then
+    table.insert(content, { type = "json", json = { errors = errors } })
+  end
+
   return {
-    content = {
-      { type = "text", text = string.format("Exportadas %d imagens para %s", exported, target_dir) }
-    },
-    isError = false
+    content = content,
+    isError = #errors > 0
   }
 end
 
