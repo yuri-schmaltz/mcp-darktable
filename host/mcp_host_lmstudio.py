@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-import subprocess
-import json
-import os
-import sys
 import argparse
+import json
+import shutil
+import subprocess
 import time
 from pathlib import Path
 
@@ -16,6 +15,7 @@ DT_SERVER_CMD = ["lua", str(BASE_DIR / "server" / "dt_mcp_server.lua")]
 # Config padrão do LM Studio (API OpenAI-like)
 LMSTUDIO_URL = "http://localhost:1234/v1/chat/completions"  # ajuste a porta se for diferente
 LMSTUDIO_MODEL = "nome-do-modelo-no-lmstudio"  # ex.: "qwen2.5-7b-instruct"
+APP_VERSION = "0.2.0"
 
 LOG_DIR = BASE_DIR / "logs"
 PROMPT_DIR = BASE_DIR / "config" / "prompts"
@@ -34,11 +34,20 @@ def call_lmstudio(system_prompt, user_prompt, model=None, url=None):
         ],
         "stream": False,
     }
+    started = time.time()
     resp = requests.post(url, json=payload)
+    elapsed_ms = int((time.time() - started) * 1000)
     resp.raise_for_status()
     data = resp.json()
     # API OpenAI-like
-    return data["choices"][0]["message"]["content"]
+    content = data["choices"][0]["message"]["content"]
+    meta = {
+        "model": model,
+        "url": url,
+        "status_code": resp.status_code,
+        "latency_ms": elapsed_ms,
+    }
+    return content, meta
 
 
 # --------- UTIL: cliente MCP (stdio) ---------
@@ -99,6 +108,12 @@ class McpClient:
 def parse_args():
     p = argparse.ArgumentParser(
         description="Host MCP para darktable + LM Studio (rating/tagging/export)."
+    )
+    p.add_argument("--version", action="version", version=f"darktable-mcp-host {APP_VERSION}")
+    p.add_argument(
+        "--check-deps",
+        action="store_true",
+        help="Só verifica dependências e sai (lua, darktable-cli, requests).",
     )
     p.add_argument("--mode", choices=["rating", "tagging", "export"], default="rating")
     p.add_argument("--source", choices=["all", "path", "tag"], default="all")
@@ -190,6 +205,23 @@ def save_log(mode, source, images, model_answer, extra=None):
     return log_file
 
 
+def check_dependencies():
+    checks = {
+        "lua": shutil.which("lua") is not None,
+        "darktable-cli": shutil.which("darktable-cli") is not None,
+        "requests": True,  # import already succeeded
+    }
+
+    print("[check-deps] Resultado:")
+    for name, ok in checks.items():
+        print(f"  - {name}: {'OK' if ok else 'NÃO ENCONTRADO'}")
+
+    missing = [name for name, ok in checks.items() if not ok]
+    if missing:
+        raise SystemExit(1)
+    raise SystemExit(0)
+
+
 # --------- MODOS ---------
 
 def run_mode_rating(client, args):
@@ -206,16 +238,20 @@ def run_mode_rating(client, args):
         sample, ensure_ascii=False
     )
 
-    answer = call_lmstudio(
+    answer, meta = call_lmstudio(
         system_prompt,
         user_prompt,
         model=args.model or LMSTUDIO_MODEL,
         url=args.lm_url or LMSTUDIO_URL,
     )
+    print(
+        f"[rating] Modelo={meta['model']} status={meta['status_code']} "
+        f"latência={meta['latency_ms']}ms @ {meta['url']}"
+    )
     print("[rating] Resposta bruta do modelo:")
     print(answer)
 
-    log_file = save_log("rating", args.source, sample, answer)
+    log_file = save_log("rating", args.source, sample, answer, extra={"llm": meta})
     print(f"[rating] Log salvo em: {log_file}")
 
     try:
@@ -252,16 +288,20 @@ def run_mode_tagging(client, args):
         sample, ensure_ascii=False
     )
 
-    answer = call_lmstudio(
+    answer, meta = call_lmstudio(
         system_prompt,
         user_prompt,
         model=args.model or LMSTUDIO_MODEL,
         url=args.lm_url or LMSTUDIO_URL,
     )
+    print(
+        f"[tagging] Modelo={meta['model']} status={meta['status_code']} "
+        f"latência={meta['latency_ms']}ms @ {meta['url']}"
+    )
     print("[tagging] Resposta bruta do modelo:")
     print(answer)
 
-    log_file = save_log("tagging", args.source, sample, answer)
+    log_file = save_log("tagging", args.source, sample, answer, extra={"llm": meta})
     print(f"[tagging] Log salvo em: {log_file}")
 
     try:
@@ -311,17 +351,25 @@ def run_mode_export(client, args):
         sample, ensure_ascii=False
     )
 
-    answer = call_lmstudio(
+    answer, meta = call_lmstudio(
         system_prompt,
         user_prompt,
         model=args.model or LMSTUDIO_MODEL,
         url=args.lm_url or LMSTUDIO_URL,
     )
+    print(
+        f"[export] Modelo={meta['model']} status={meta['status_code']} "
+        f"latência={meta['latency_ms']}ms @ {meta['url']}"
+    )
     print("[export] Resposta bruta do modelo:")
     print(answer)
 
     log_file = save_log(
-        "export", args.source, sample, answer, extra={"target_dir": args.target_dir}
+        "export",
+        args.source,
+        sample,
+        answer,
+        extra={"target_dir": args.target_dir, "llm": meta},
     )
     print(f"[export] Log salvo em: {log_file}")
 
@@ -355,6 +403,9 @@ def run_mode_export(client, args):
 # --------- MAIN ---------
 def main():
     args = parse_args()
+
+    if args.check_deps:
+        check_dependencies()
 
     LOG_DIR.mkdir(exist_ok=True)
 

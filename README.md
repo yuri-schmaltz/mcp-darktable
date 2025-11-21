@@ -19,6 +19,9 @@ em fluxos de tratamento em lote (rating, tagging, export).
 - Python 3 + `requests`
 - Opcional: Ollama e/ou LM Studio rodando localmente
 
+Use `python host/mcp_host_lmstudio.py --check-deps` para verificar rapidamente se `lua`, `darktable-cli`
+e a biblioteca `requests` estão acessíveis.
+
 ### Lua
 
 Instale o dkjson:
@@ -75,3 +78,27 @@ python host/mcp_host_lmstudio.py --mode rating --source all --dry-run
 ```
 
 Depois é só adaptar os parâmetros de linha de comando para `tagging` e `export`.
+
+Para ver a versão do host ou confirmar dependências antes de rodar, use `--version` e `--check-deps`.
+
+## Formato esperado de respostas do LLM
+
+Os hosts esperam respostas JSON simples. Exemplos mínimos por modo:
+
+- `rating`: `{ "edits": [ { "id": 123, "rating": 3 } ] }`
+- `tagging`: `{ "tags": [ { "tag": "job:cliente-x", "ids": [1,2,3] } ] }`
+- `export`: `{ "ids_para_exportar": [1,2,3] }` (ou `ids`)
+
+O log em `logs/batch-*.json` inclui a resposta bruta do modelo e metadados da chamada (modelo, URL, latência).
+
+## Comportamento de colorlabels e export
+
+- `set_colorlabel_batch` ativa a cor solicitada em cada imagem, sem limpar marcas anteriores. Caso precise
+  sobrescrever cores existentes, faça um passo de limpeza antes de aplicar novas cores.
+- `export_collection` valida o diretório alvo e o formato (somente letras/números) e exige `darktable-cli`
+  no `PATH`. A função registra no stderr cada export que falhar e retorna um resumo com eventuais erros em
+  JSON para ajudar na depuração.
+
+## Avaliação rápida da base
+
+Para uma visão consolidada da arquitetura, riscos atuais e sugestões de robustez/usabilidade, consulte o relatório em [ANALYSIS.md](ANALYSIS.md).
