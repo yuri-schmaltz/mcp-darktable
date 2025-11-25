@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QProgressBar,
+    QSizePolicy,
     QRadioButton,
     QSpinBox,
     QTextEdit,
@@ -267,6 +268,22 @@ class MCPGui(QMainWindow):
         llm_layout.setVerticalSpacing(8)
         llm_layout.setColumnStretch(1, 1)
 
+        framework_label = QLabel("Framework:")
+        framework_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.host_group = QButtonGroup(self)
+        self.host_ollama = QRadioButton("Ollama")
+        self.host_ollama.setChecked(True)
+        self.host_lmstudio = QRadioButton("LM Studio")
+        self.host_group.addButton(self.host_ollama)
+        self.host_group.addButton(self.host_lmstudio)
+        host_layout = QHBoxLayout()
+        host_layout.setSpacing(10)
+        host_layout.addWidget(self.host_ollama)
+        host_layout.addWidget(self.host_lmstudio)
+        host_layout.addStretch()
+        llm_layout.addWidget(framework_label, 0, 0)
+        llm_layout.addLayout(host_layout, 0, 1)
+
         self.model_edit = QLineEdit()
         self.url_edit = QLineEdit()
 
@@ -278,15 +295,17 @@ class MCPGui(QMainWindow):
 
         check_button = QPushButton("Verificar conectividade")
         check_button.clicked.connect(self.check_connectivity)
-        actions_layout.addWidget(check_button)
+        url_row.addWidget(check_button)
 
+        model_row = self._add_form_row(llm_layout, 2, "Modelo:", self.model_edit)
         list_button = QPushButton("Listar modelos")
         list_button.clicked.connect(self.list_models)
-        actions_layout.addWidget(list_button)
+        model_row.addWidget(list_button)
 
         download_button = QPushButton("Baixar modelo")
         download_button.clicked.connect(self.download_model)
-        actions_layout.addWidget(download_button)
+        model_row.addWidget(download_button)
+        model_row.addStretch()
 
         run_button = QPushButton("Executar host")
         run_button.clicked.connect(self.run_host)
@@ -307,7 +326,6 @@ class MCPGui(QMainWindow):
         self.status_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         self.progress = QProgressBar()
-        self.progress.setFixedWidth(180)
         self.progress.setRange(0, 1)
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
