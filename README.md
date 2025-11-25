@@ -168,8 +168,9 @@ O log em `logs/batch-*.json` inclui a resposta bruta do modelo e metadados da ch
 
 ## Comportamento de colorlabels e export
 
-- `set_colorlabel_batch` ativa a cor solicitada em cada imagem, sem limpar marcas anteriores. Caso precise
-  sobrescrever cores existentes, faça um passo de limpeza antes de aplicar novas cores.
+- `set_colorlabel_batch` aplica uma cor em cada imagem. Por padrão o comportamento é aditivo (mantém
+  colorlabels existentes), mas é possível passar `"overwrite": true` para limpar todas as cores anteriores
+  antes de aplicar a nova cor.
 - `export_collection` valida o diretório alvo e o formato (somente letras/números) e exige `darktable-cli`
   no `PATH`. A função registra no stderr cada export que falhar e retorna um resumo com eventuais erros em
   JSON para ajudar na depuração.

@@ -5,6 +5,9 @@ Você recebe uma lista de fotos com:
 - rating
 - colorlabels
 
+Observação: se precisar sugerir uso de `set_colorlabel_batch`, o comportamento padrão é adicionar uma cor
+sem limpar as anteriores; inclua `"overwrite": true` apenas quando for necessário substituir as existentes.
+
 O objetivo é propor TAGS de job/cliente/projeto.
 
 Exemplos de tags:

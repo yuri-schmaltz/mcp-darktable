@@ -191,7 +191,7 @@ end
 local function tool_apply_batch_edits(args)
   if not args or type(args.edits) ~= "table" then
     return {
-      content = { { type = "text", text = "Missing 'edits' array" } },
+      content = { { type = "text", text = "Parâmetro 'edits' (array) é obrigatório" } },
       isError = true
     }
   end
@@ -219,7 +219,7 @@ end
 
 --------------------------------------------------
 -- 4.5 set_colorlabel_batch
--- args: { edits: [ { id: number, color: string } ] }
+-- args: { edits: [ { id: number, color: string } ], overwrite?: boolean }
 --------------------------------------------------
 local color_map = {
   red    = 0,
@@ -232,27 +232,48 @@ local color_map = {
 local function tool_set_colorlabel_batch(args)
   if not args or type(args.edits) ~= "table" then
     return {
-      content = { { type = "text", text = "Missing 'edits' array" } },
+      content = { { type = "text", text = "Parâmetro 'edits' (array) é obrigatório" } },
       isError = true
     }
   end
 
-  local updated = 0
-  for _, e in ipairs(args.edits) do
-    if e.id and e.color then
-      local img = dt.database[e.id]
-      local idx = color_map[e.color]
-      if img and idx ~= nil then
-        -- limpa todas as cores antes? aqui vou só ativar a pedida
-        img.colorlabels[idx] = true
-        updated = updated + 1
-      end
+  local overwrite = args.overwrite
+  if overwrite ~= nil and type(overwrite) ~= "boolean" then
+    return {
+      content = { { type = "text", text = "overwrite deve ser booleano quando informado" } },
+      isError = true
+    }
+  end
+
+  for idx, e in ipairs(args.edits) do
+    local color_idx = e and e.color and color_map[e.color]
+    if type(e) ~= "table" or type(e.id) ~= "number" or color_idx == nil then
+      return {
+        content = { { type = "text", text = string.format("Cada edit precisa de 'id' numérico e 'color' válido (red, yellow, green, blue ou purple). Entrada inválida no índice %d", idx) } },
+        isError = true
+      }
     end
   end
 
+  local updated = 0
+  for _, e in ipairs(args.edits) do
+    local img = dt.database[e.id]
+    local idx = color_map[e.color]
+    if img and idx ~= nil then
+      if overwrite then
+        for i = 0, 4 do
+          img.colorlabels[i] = false
+        end
+      end
+      img.colorlabels[idx] = true
+      updated = updated + 1
+    end
+  end
+
+  local mode = overwrite and "overwrite" or "append"
   return {
     content = {
-      { type = "text", text = string.format("Applied colorlabels to %d images", updated) }
+      { type = "text", text = string.format("Applied colorlabels (%s) to %d images", mode, updated) }
     },
     isError = false
   }
@@ -549,6 +570,10 @@ local function handle_tools_list(req)
         type       = "object",
         required   = { "edits" },
         properties = {
+          overwrite = {
+            type        = "boolean",
+            description = "Se true, limpa colorlabels anteriores antes de aplicar a nova cor. Padrão: false"
+          },
           edits = {
             type = "array",
             items = {

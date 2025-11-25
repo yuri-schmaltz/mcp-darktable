@@ -7,6 +7,9 @@ Cada foto tem:
 - rating
 - colorlabels
 
+Observação: ao usar `set_colorlabel_batch`, a cor indicada é adicionada às existentes. Use
+`"overwrite": true` apenas quando quiser limpar todas as colorlabels antes de aplicar a nova cor.
+
 O objetivo é selecionar quais fotos devem ser EXPORTADAS para entrega ao cliente.
 
 Regras sugeridas:
