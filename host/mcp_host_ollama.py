@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-import subprocess
-import json
-import os
-import sys
 import argparse
+import json
+import subprocess
 import time
 from pathlib import Path
 
@@ -16,6 +14,9 @@ DT_SERVER_CMD = ["lua", str(BASE_DIR / "server" / "dt_mcp_server.lua")]
 # Config padrão do Ollama
 OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = "llama3.1"  # ajuste pro modelo que você tiver
+PROTOCOL_VERSION = "2024-11-05"
+APP_VERSION = "0.2.0"
+CLIENT_INFO = {"name": "darktable-mcp-ollama", "version": APP_VERSION}
 
 LOG_DIR = BASE_DIR / "logs"
 PROMPT_DIR = BASE_DIR / "config" / "prompts"
@@ -78,7 +79,12 @@ class McpClient:
         return resp["result"]
 
     def initialize(self):
-        return self.request("initialize", {"capabilities": {}})
+        params = {
+            "protocolVersion": PROTOCOL_VERSION,
+            "capabilities": {},
+            "clientInfo": CLIENT_INFO,
+        }
+        return self.request("initialize", params)
 
     def list_tools(self):
         return self.request("tools/list", {})

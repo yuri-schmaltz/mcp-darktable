@@ -8,6 +8,10 @@ from pathlib import Path
 
 import requests
 
+PROTOCOL_VERSION = "2024-11-05"
+APP_VERSION = "0.2.0"
+CLIENT_INFO = {"name": "darktable-mcp-lmstudio", "version": APP_VERSION}
+
 # Caminho do servidor Lua (ajuste se necessário)
 BASE_DIR = Path(__file__).resolve().parent.parent
 DT_SERVER_CMD = ["lua", str(BASE_DIR / "server" / "dt_mcp_server.lua")]
@@ -15,7 +19,6 @@ DT_SERVER_CMD = ["lua", str(BASE_DIR / "server" / "dt_mcp_server.lua")]
 # Config padrão do LM Studio (API OpenAI-like)
 LMSTUDIO_URL = "http://localhost:1234/v1/chat/completions"  # ajuste a porta se for diferente
 LMSTUDIO_MODEL = "nome-do-modelo-no-lmstudio"  # ex.: "qwen2.5-7b-instruct"
-APP_VERSION = "0.2.0"
 
 LOG_DIR = BASE_DIR / "logs"
 PROMPT_DIR = BASE_DIR / "config" / "prompts"
@@ -88,7 +91,12 @@ class McpClient:
         return resp["result"]
 
     def initialize(self):
-        return self.request("initialize", {"capabilities": {}})
+        params = {
+            "protocolVersion": PROTOCOL_VERSION,
+            "capabilities": {},
+            "clientInfo": CLIENT_INFO,
+        }
+        return self.request("initialize", params)
 
     def list_tools(self):
         return self.request("tools/list", {})

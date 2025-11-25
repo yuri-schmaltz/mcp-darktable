@@ -14,6 +14,8 @@
 local json   = require "dkjson"
 local package = require "package"
 
+local PROTOCOL_VERSION = "2024-11-05"
+
 --------------------------------------------------
 -- 1. Inicializar darktable em modo biblioteca
 --------------------------------------------------
@@ -425,11 +427,19 @@ end
 --------------------------------------------------
 
 local function handle_initialize(req)
+  local params = req.params or {}
+  local client_protocol = params.protocolVersion
+
+  if client_protocol and client_protocol ~= PROTOCOL_VERSION then
+    send_error(req.id, -32603, "Unsupported protocolVersion: " .. tostring(client_protocol))
+    return
+  end
+
   send_response{
     jsonrpc = "2.0",
     id = req.id,
     result = {
-      protocolVersion = "2024-11-05",
+      protocolVersion = PROTOCOL_VERSION,
       serverInfo = {
         name = "darktable-mcp-batch",
         version = "0.2.0"
