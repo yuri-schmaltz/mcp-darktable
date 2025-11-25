@@ -246,6 +246,33 @@ def save_log(mode, source, images, model_answer, extra=None):
     return log_file
 
 
+def append_export_result_to_log(log_file: Path, export_result: dict) -> Path:
+    try:
+        existing = json.loads(log_file.read_text(encoding="utf-8"))
+    except Exception:
+        existing = None
+
+    if isinstance(existing, dict):
+        extra = existing.get("extra") or {}
+        extra["export_result"] = export_result
+        existing["extra"] = extra
+        log_file.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
+        return log_file
+
+    fallback = LOG_DIR / f"{log_file.stem}-export-result{log_file.suffix}"
+    fallback.write_text(json.dumps(export_result, ensure_ascii=False, indent=2), encoding="utf-8")
+    return fallback
+
+
+def extract_export_errors(result_payload):
+    for part in result_payload.get("content", []):
+        if isinstance(part, dict) and isinstance(part.get("json"), dict):
+            maybe_errors = part["json"].get("errors")
+            if maybe_errors:
+                return maybe_errors
+    return []
+
+
 # --------- MODOS ---------
 
 def run_mode_rating(client, args):
@@ -403,7 +430,24 @@ def run_mode_export(client, args):
         "overwrite": False,
     }
     res = client.call_tool("export_collection", params)
-    print("[export] Resultado export_collection:", res["content"][0]["text"])
+    summary = res["content"][0]["text"]
+    print("[export] Resultado export_collection:", summary)
+
+    errors = extract_export_errors(res)
+    if errors:
+        print("[export] Falhas detalhadas:")
+        for err in errors:
+            print(
+                f"  id={err.get('id')} exit={err.get('exit')} reason={err.get('exit_reason')} "
+                f"cmd={err.get('command')}"
+            )
+            stderr_msg = (err.get("stderr") or "").strip()
+            if stderr_msg:
+                print("    stderr:", stderr_msg)
+
+    stored_log = append_export_result_to_log(log_file, res)
+    if stored_log != log_file:
+        print(f"[export] Resultado de export salvo em log adicional: {stored_log}")
 
 
 # --------- DEPENDÊNCIAS ---------

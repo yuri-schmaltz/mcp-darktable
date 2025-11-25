@@ -14,6 +14,28 @@
 local json   = require "dkjson"
 local package = require "package"
 
+local function mcp_error(message, code, field, extra)
+  local json_error = {
+    code    = code or "validation_error",
+    message = message,
+    field   = field
+  }
+
+  if extra then
+    for k, v in pairs(extra) do
+      json_error[k] = v
+    end
+  end
+
+  return {
+    content = {
+      { type = "text", text = message },
+      { type = "json", json = json_error }
+    },
+    isError = true
+  }
+end
+
 local PROTOCOL_VERSION = "2024-11-05"
 
 --------------------------------------------------
@@ -89,6 +111,30 @@ local function command_exists(cmd)
     return result == 0
   end
   return result == true
+end
+
+local function run_command_capture(cmd)
+  local handle = io.popen(cmd .. " 2>&1")
+  if not handle then
+    return false, -1, "io.popen failed", "popen"
+  end
+
+  local output = handle:read("*a") or ""
+  local ok, reason, status = handle:close()
+
+  local success = (type(ok) == "number" and ok == 0) or ok == true
+  local exit_code = status
+  if not exit_code or type(exit_code) ~= "number" then
+    if type(ok) == "number" then
+      exit_code = ok
+    elseif ok == true then
+      exit_code = 0
+    else
+      exit_code = -1
+    end
+  end
+
+  return success, exit_code, output, reason
 end
 
 --------------------------------------------------
@@ -320,38 +366,61 @@ end
 -- }
 -- OBS: usa darktable-cli externo, ajuste o comando se necessário.
 --------------------------------------------------
+local ALLOWED_EXPORT_FORMATS = { "jpg", "jpeg", "tif", "tiff", "png", "webp" }
+local ALLOWED_EXPORT_FORMATS_SET = {}
+for _, fmt in ipairs(ALLOWED_EXPORT_FORMATS) do
+  ALLOWED_EXPORT_FORMATS_SET[fmt] = true
+end
+
 local function tool_export_collection(args)
   args = args or {}
   local target_dir = args.target_dir
   if not target_dir then
-    return {
-      content = { { type = "text", text = "target_dir is required" } },
-      isError = true
-    }
+    return mcp_error("target_dir is required", "missing_target_dir", "target_dir")
   end
 
   if type(target_dir) ~= "string" or target_dir == "" then
-    return {
-      content = { { type = "text", text = "target_dir deve ser string não vazia" } },
-      isError = true
-    }
+    return mcp_error("target_dir deve ser string não vazia", "invalid_target_dir", "target_dir")
   end
 
   if target_dir:find("\n") or target_dir:find("\r") then
-    return {
-      content = { { type = "text", text = "target_dir não pode conter quebras de linha" } },
-      isError = true
-    }
+    return mcp_error(
+      "target_dir não pode conter quebras de linha",
+      "invalid_target_dir",
+      "target_dir"
+    )
+  end
+
+  if target_dir:find("%.%.", 1, true) then
+    return mcp_error(
+      "target_dir não pode conter '..'",
+      "invalid_target_dir",
+      "target_dir"
+    )
+  end
+
+  if target_dir:match("[><|;&%$`]") or target_dir:find("$(", 1, true) then
+    return mcp_error(
+      "target_dir não pode conter redirecionamentos ou caracteres de shell",
+      "invalid_target_dir",
+      "target_dir"
+    )
   end
 
   local format    = (args.format or "jpg"):lower()
   local overwrite = args.overwrite or false
 
   if not format:match("^[%w]+$") then
-    return {
-      content = { { type = "text", text = "format deve conter apenas letras/números" } },
-      isError = true
-    }
+    return mcp_error("format deve conter apenas letras/números", "invalid_format", "format")
+  end
+
+  if not ALLOWED_EXPORT_FORMATS_SET[format] then
+    return mcp_error(
+      "format não é suportado",
+      "invalid_format",
+      "format",
+      { allowed = ALLOWED_EXPORT_FORMATS }
+    )
   end
 
   if not command_exists("darktable-cli") then
@@ -401,9 +470,7 @@ local function tool_export_collection(args)
 
     -- comando simples; ajuste flags conforme sua necessidade
     local cmd = string.format('darktable-cli "%s" "%s"', input, out)
-    local ok, _, status = os.execute(cmd)
-    local success = (type(ok) == "number" and ok == 0) or ok == true
-    local exit_code = status or ok
+    local success, exit_code, stderr_output, exit_reason = run_command_capture(cmd)
 
     if success then
       exported = exported + 1
@@ -414,11 +481,15 @@ local function tool_export_collection(args)
         output = out,
         command = cmd,
         exit = exit_code,
+        exit_reason = exit_reason,
+        stderr = stderr_output,
       })
       io.stderr:write(string.format(
-        "[export_collection] falha exportando id=%s exit=%s\n",
+        "[export_collection] falha exportando id=%s exit=%s motivo=%s stderr=%s\n",
         tostring(img.id),
-        tostring(exit_code)
+        tostring(exit_code),
+        tostring(exit_reason),
+        (stderr_output or ""):gsub("\n", " ")
       ))
     end
 
