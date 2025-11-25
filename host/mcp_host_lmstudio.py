@@ -417,7 +417,14 @@ def main():
 
     LOG_DIR.mkdir(exist_ok=True)
 
-    client = McpClient(DT_SERVER_CMD)
+    try:
+        client = McpClient(DT_SERVER_CMD)
+    except FileNotFoundError as exc:
+        friendly = (
+            "Falha ao iniciar o servidor MCP. Certifique-se de que 'lua' e 'darktable-cli' "
+            "estão instalados e no PATH, ou use --check-deps para validar antes de rodar."
+        )
+        raise SystemExit(friendly) from exc
     try:
         init = client.initialize()
         print("Inicializado:", init["serverInfo"])
