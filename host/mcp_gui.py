@@ -90,14 +90,16 @@ class MCPGui(QMainWindow):
         self.setCentralWidget(central)
 
         main_layout = QVBoxLayout(central)
-        main_layout.setContentsMargins(12, 12, 12, 12)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(14, 14, 14, 14)
+        main_layout.setSpacing(12)
 
         top_group = QGroupBox("Parâmetros principais")
         top_layout = QVBoxLayout(top_group)
-        top_layout.setSpacing(8)
+        top_layout.setContentsMargins(8, 12, 8, 12)
+        top_layout.setSpacing(10)
 
         host_layout = QHBoxLayout()
+        host_layout.setSpacing(12)
         host_layout.addWidget(QLabel("Framework:"))
         self.host_group = QButtonGroup(self)
         self.host_ollama = QRadioButton("Ollama")
@@ -111,6 +113,7 @@ class MCPGui(QMainWindow):
         top_layout.addLayout(host_layout)
 
         mode_layout = QHBoxLayout()
+        mode_layout.setSpacing(12)
         mode_layout.addWidget(QLabel("Modo:"))
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["rating", "tagging", "export"])
@@ -144,7 +147,8 @@ class MCPGui(QMainWindow):
 
         filter_group = QGroupBox("Filtros e opções")
         filter_layout = QVBoxLayout(filter_group)
-        filter_layout.setSpacing(8)
+        filter_layout.setContentsMargins(8, 12, 8, 12)
+        filter_layout.setSpacing(10)
 
         self.path_contains_edit = self._add_labeled_row(filter_layout, "Path contains:")
         self.tag_edit = self._add_labeled_row(filter_layout, "Tag:")
@@ -159,6 +163,7 @@ class MCPGui(QMainWindow):
         target_layout.addWidget(self.target_button)
 
         flags_layout = QHBoxLayout()
+        flags_layout.setSpacing(12)
         self.only_raw_check = QCheckBox("Apenas RAW")
         self.dry_run_check = QCheckBox("Dry-run")
         self.dry_run_check.setChecked(True)
@@ -172,12 +177,14 @@ class MCPGui(QMainWindow):
 
         llm_group = QGroupBox("LLM")
         llm_layout = QVBoxLayout(llm_group)
-        llm_layout.setSpacing(8)
+        llm_layout.setContentsMargins(8, 12, 8, 12)
+        llm_layout.setSpacing(10)
 
         self.model_edit = self._add_labeled_row(llm_layout, "Modelo:")
         self.url_edit = self._add_labeled_row(llm_layout, "URL do servidor:")
 
         actions_layout = QHBoxLayout()
+        actions_layout.setSpacing(8)
         check_button = QPushButton("Verificar conectividade")
         check_button.clicked.connect(self.check_connectivity)
         actions_layout.addWidget(check_button)
@@ -199,7 +206,9 @@ class MCPGui(QMainWindow):
         main_layout.addWidget(llm_group)
 
         status_layout = QHBoxLayout()
+        status_layout.setSpacing(10)
         self.status_label = QLabel("Pronto para configurar a execução.")
+        self.status_label.setWordWrap(True)
         status_layout.addWidget(self.status_label, alignment=Qt.AlignmentFlag.AlignLeft)
         self.progress = QProgressBar()
         self.progress.setFixedWidth(180)
@@ -211,6 +220,8 @@ class MCPGui(QMainWindow):
 
         log_group = QGroupBox("Log")
         log_layout = QVBoxLayout(log_group)
+        log_layout.setContentsMargins(8, 12, 8, 12)
+        log_layout.setSpacing(10)
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
@@ -225,10 +236,13 @@ class MCPGui(QMainWindow):
         self, layout: QVBoxLayout, label: str, *, return_layout: bool = False
     ) -> QLineEdit | tuple[QHBoxLayout, QLineEdit]:
         row_layout = QHBoxLayout()
+        row_layout.setSpacing(10)
         lbl = QLabel(label)
-        lbl.setFixedWidth(100)
+        lbl.setFixedWidth(120)
+        lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         row_layout.addWidget(lbl)
         line_edit = QLineEdit()
+        line_edit.setMinimumWidth(260)
         row_layout.addWidget(line_edit, stretch=1)
         layout.addLayout(row_layout)
         if return_layout:
