@@ -66,7 +66,22 @@ class MCPGui(QMainWindow):
         self.progress_signal.connect(self._toggle_progress)
         self.error_signal.connect(self._show_error)
 
+        self._apply_global_style()
         self._build_layout()
+        self._apply_defaults()
+        self._connect_dynamic_behaviors()
+
+    def _apply_global_style(self) -> None:
+        self.setStyleSheet(
+            """
+            QWidget { font-size: 14px; }
+            QGroupBox { font-weight: 600; }
+            QLabel { color: #2c3e50; }
+            QPushButton { padding: 6px 12px; }
+            QLineEdit, QComboBox, QTextEdit { padding: 6px; }
+            QTextEdit { font-family: "JetBrains Mono", "Fira Code", monospace; }
+            """
+        )
 
     def _build_layout(self) -> None:
         central = QWidget()
@@ -78,6 +93,7 @@ class MCPGui(QMainWindow):
 
         top_group = QGroupBox("Parâmetros principais")
         top_layout = QVBoxLayout(top_group)
+        top_layout.setSpacing(8)
 
         host_layout = QHBoxLayout()
         host_layout.addWidget(QLabel("Framework:"))
@@ -126,6 +142,7 @@ class MCPGui(QMainWindow):
 
         filter_group = QGroupBox("Filtros e opções")
         filter_layout = QVBoxLayout(filter_group)
+        filter_layout.setSpacing(8)
 
         self.path_contains_edit = self._add_labeled_row(filter_layout, "Path contains:")
         self.tag_edit = self._add_labeled_row(filter_layout, "Tag:")
@@ -135,9 +152,9 @@ class MCPGui(QMainWindow):
         prompt_layout.addWidget(prompt_button)
 
         target_layout, self.target_edit = self._add_labeled_row(filter_layout, "Dir export:", return_layout=True)
-        target_button = QPushButton("Selecionar")
-        target_button.clicked.connect(self._choose_target_dir)
-        target_layout.addWidget(target_button)
+        self.target_button = QPushButton("Selecionar")
+        self.target_button.clicked.connect(self._choose_target_dir)
+        target_layout.addWidget(self.target_button)
 
         flags_layout = QHBoxLayout()
         self.only_raw_check = QCheckBox("Apenas RAW")
@@ -153,6 +170,7 @@ class MCPGui(QMainWindow):
 
         llm_group = QGroupBox("LLM")
         llm_layout = QVBoxLayout(llm_group)
+        llm_layout.setSpacing(8)
 
         self.model_edit = self._add_labeled_row(llm_layout, "Modelo:")
         self.url_edit = self._add_labeled_row(llm_layout, "URL do servidor:")
@@ -181,6 +199,7 @@ class MCPGui(QMainWindow):
         self.progress.setFixedWidth(180)
         self.progress.setRange(0, 1)
         self.progress.setValue(0)
+        self.progress.setTextVisible(False)
         status_layout.addWidget(self.progress)
         main_layout.addLayout(status_layout)
 
@@ -189,7 +208,11 @@ class MCPGui(QMainWindow):
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        clear_log = QPushButton("Limpar log")
+        clear_log.setToolTip("Remove o conteúdo exibido acima")
+        clear_log.clicked.connect(self.log_text.clear)
         log_layout.addWidget(self.log_text)
+        log_layout.addWidget(clear_log, alignment=Qt.AlignmentFlag.AlignRight)
         main_layout.addWidget(log_group, stretch=1)
 
     def _add_labeled_row(
@@ -217,6 +240,53 @@ class MCPGui(QMainWindow):
         path = QFileDialog.getExistingDirectory(self, "Escolher diretório de export")
         if path:
             self.target_edit.setText(path)
+
+    def _apply_defaults(self) -> None:
+        self.path_contains_edit.setPlaceholderText("/cliente-x/viagem")
+        self.tag_edit.setPlaceholderText("job:cliente")
+        self.prompt_edit.setPlaceholderText("Arquivo .md opcional com prompt customizado")
+        self.target_edit.setPlaceholderText("Diretório de export (apenas modo export)")
+        self.model_edit.setPlaceholderText("Nome do modelo disponível no host")
+        self.url_edit.setPlaceholderText("http://localhost:11434 ou http://localhost:1234/v1")
+        self.log_text.setPlaceholderText("Logs e progresso serão exibidos aqui...")
+        self._apply_host_defaults()
+        self._update_source_fields(self.source_combo.currentText())
+        self._update_mode_fields(self.mode_combo.currentText())
+
+    def _connect_dynamic_behaviors(self) -> None:
+        self.host_ollama.toggled.connect(lambda checked: checked and self._apply_host_defaults())
+        self.host_lmstudio.toggled.connect(lambda checked: checked and self._apply_host_defaults())
+        self.source_combo.currentTextChanged.connect(self._update_source_fields)
+        self.mode_combo.currentTextChanged.connect(self._update_mode_fields)
+
+    def _apply_host_defaults(self) -> None:
+        host = self._selected_host()
+        model_default = OLLAMA_MODEL if host == "ollama" else LMSTUDIO_MODEL
+        url_default = OLLAMA_URL if host == "ollama" else LMSTUDIO_URL
+
+        current_model = self.model_edit.text().strip()
+        current_url = self.url_edit.text().strip()
+
+        if not current_model or current_model in {OLLAMA_MODEL, LMSTUDIO_MODEL}:
+            self.model_edit.setText(model_default)
+        if not current_url or current_url in {OLLAMA_URL, LMSTUDIO_URL}:
+            self.url_edit.setText(url_default)
+
+    def _update_source_fields(self, source: str) -> None:
+        is_path = source == "path"
+        is_tag = source == "tag"
+        self.path_contains_edit.setEnabled(is_path)
+        self.tag_edit.setEnabled(is_tag)
+        self.path_contains_edit.setToolTip("Filtrar apenas por caminho contendo este trecho" if is_path else "Disponível somente quando a fonte for 'path'")
+        self.tag_edit.setToolTip("Tag existente no darktable" if is_tag else "Disponível somente quando a fonte for 'tag'")
+
+    def _update_mode_fields(self, mode: str) -> None:
+        is_export = mode == "export"
+        self.target_edit.setEnabled(is_export)
+        self.target_button.setEnabled(is_export)
+        tooltip = "Necessário apenas para export" if is_export else "Habilite ao selecionar modo export"
+        self.target_edit.setToolTip(tooltip)
+        self.target_button.setToolTip(tooltip)
 
     # --------------------------- Tarefas assíncronas ---------------------------
     def _run_async(self, description: str, target: Callable[[], None]) -> None:
@@ -392,6 +462,7 @@ class MCPGui(QMainWindow):
 
 def main() -> None:
     qt_app = QApplication(sys.argv)
+    qt_app.setStyle("Fusion")
     window = MCPGui()
     window.show()
     qt_app.exec()
