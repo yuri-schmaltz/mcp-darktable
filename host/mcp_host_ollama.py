@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -105,6 +106,7 @@ def parse_args():
     p = argparse.ArgumentParser(
         description="Host MCP para darktable + Ollama (rating/tagging/export)."
     )
+    p.add_argument("--version", action="version", version=f"darktable-mcp-host {APP_VERSION}")
     p.add_argument("--mode", choices=["rating", "tagging", "export"], default="rating")
     p.add_argument("--source", choices=["all", "path", "tag"], default="all")
     p.add_argument("--path-contains", help="Filtro por trecho de path (source=path).")
@@ -122,6 +124,11 @@ def parse_args():
     p.add_argument(
         "--prompt-file",
         help="Override do prompt (caminho para .md)."
+    )
+    p.add_argument(
+        "--check-deps",
+        action="store_true",
+        help="Valida a presença de 'lua' e 'darktable-cli' antes de executar.",
     )
     return p.parse_args()
 
@@ -356,14 +363,42 @@ def run_mode_export(client, args):
     print("[export] Resultado export_collection:", res["content"][0]["text"])
 
 
+# --------- DEPENDÊNCIAS ---------
+def check_dependencies():
+    checks = {
+        "lua": shutil.which("lua") is not None,
+        "darktable-cli": shutil.which("darktable-cli") is not None,
+        "requests": True,
+    }
+
+    print("[check-deps] Resultado:")
+    for name, ok in checks.items():
+        print(f"  - {name}: {'OK' if ok else 'NÃO ENCONTRADO'}")
+
+    missing = [name for name, ok in checks.items() if not ok]
+    if missing:
+        raise SystemExit(1)
+    raise SystemExit(0)
+
+
 # --------- MAIN ---------
 def main():
     args = parse_args()
 
+    if args.check_deps:
+        check_dependencies()
+
     # Apenas garante que diretórios existem
     LOG_DIR.mkdir(exist_ok=True)
 
-    client = McpClient(DT_SERVER_CMD)
+    try:
+        client = McpClient(DT_SERVER_CMD)
+    except FileNotFoundError as exc:
+        friendly = (
+            "Falha ao iniciar o servidor MCP. Certifique-se de que 'lua' e 'darktable-cli' "
+            "estão instalados e no PATH, ou use --check-deps para validar antes de rodar."
+        )
+        raise SystemExit(friendly) from exc
     try:
         init = client.initialize()
         print("Inicializado:", init["serverInfo"])

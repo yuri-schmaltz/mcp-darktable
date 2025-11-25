@@ -158,7 +158,7 @@ def gather_config() -> RunConfig:
             raise SystemExit("--target-dir é obrigatório quando mode=export")
 
     extra_flags: List[str] = []
-    if host == "lmstudio" and _ask_yes_no("Rodar check de dependências antes?", default=False):
+    if _ask_yes_no("Rodar check de dependências antes?", default=False):
         extra_flags.append("--check-deps")
 
     return RunConfig(
