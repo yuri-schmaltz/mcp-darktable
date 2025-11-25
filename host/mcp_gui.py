@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
     QComboBox,
+    QGridLayout,
     QFileDialog,
     QGroupBox,
     QHBoxLayout,
@@ -94,73 +95,87 @@ class MCPGui(QMainWindow):
         main_layout.setSpacing(12)
 
         top_group = QGroupBox("Parâmetros principais")
-        top_layout = QVBoxLayout(top_group)
-        top_layout.setContentsMargins(8, 12, 8, 12)
-        top_layout.setSpacing(10)
+        top_layout = QGridLayout(top_group)
+        top_layout.setContentsMargins(10, 12, 10, 12)
+        top_layout.setHorizontalSpacing(14)
+        top_layout.setVerticalSpacing(10)
 
-        host_layout = QHBoxLayout()
-        host_layout.setSpacing(12)
-        host_layout.addWidget(QLabel("Framework:"))
+        host_label = QLabel("Framework:")
+        host_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.host_group = QButtonGroup(self)
         self.host_ollama = QRadioButton("Ollama")
         self.host_ollama.setChecked(True)
         self.host_lmstudio = QRadioButton("LM Studio")
         self.host_group.addButton(self.host_ollama)
         self.host_group.addButton(self.host_lmstudio)
+        host_layout = QHBoxLayout()
+        host_layout.setSpacing(10)
         host_layout.addWidget(self.host_ollama)
         host_layout.addWidget(self.host_lmstudio)
         host_layout.addStretch()
-        top_layout.addLayout(host_layout)
+        top_layout.addWidget(host_label, 0, 0)
+        top_layout.addLayout(host_layout, 0, 1, 1, 3)
 
-        mode_layout = QHBoxLayout()
-        mode_layout.setSpacing(12)
-        mode_layout.addWidget(QLabel("Modo:"))
+        mode_label = QLabel("Modo:")
+        mode_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["rating", "tagging", "export"])
-        mode_layout.addWidget(self.mode_combo)
-        mode_layout.addSpacing(12)
+        top_layout.addWidget(mode_label, 1, 0)
+        top_layout.addWidget(self.mode_combo, 1, 1)
 
-        mode_layout.addWidget(QLabel("Fonte:"))
+        source_label = QLabel("Fonte:")
+        source_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.source_combo = QComboBox()
         self.source_combo.addItems(["all", "path", "tag"])
-        mode_layout.addWidget(self.source_combo)
-        mode_layout.addSpacing(12)
+        top_layout.addWidget(source_label, 1, 2)
+        top_layout.addWidget(self.source_combo, 1, 3)
 
-        mode_layout.addWidget(QLabel("Rating mínimo:"))
+        min_label = QLabel("Rating mínimo:")
+        min_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.min_rating_spin = QSpinBox()
         self.min_rating_spin.setRange(-2, 5)
         self.min_rating_spin.setValue(DEFAULT_MIN_RATING)
-        self.min_rating_spin.setFixedWidth(70)
-        mode_layout.addWidget(self.min_rating_spin)
-        mode_layout.addSpacing(12)
+        self.min_rating_spin.setFixedWidth(80)
+        top_layout.addWidget(min_label, 2, 0)
+        top_layout.addWidget(self.min_rating_spin, 2, 1)
 
-        mode_layout.addWidget(QLabel("Limite:"))
+        limit_label = QLabel("Limite:")
+        limit_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.limit_spin = QSpinBox()
         self.limit_spin.setRange(1, 2000)
         self.limit_spin.setValue(DEFAULT_LIMIT)
-        self.limit_spin.setFixedWidth(90)
-        mode_layout.addWidget(self.limit_spin)
-        mode_layout.addStretch()
-        top_layout.addLayout(mode_layout)
+        self.limit_spin.setFixedWidth(100)
+        top_layout.addWidget(limit_label, 2, 2)
+        top_layout.addWidget(self.limit_spin, 2, 3)
+
+        top_layout.setColumnStretch(1, 1)
+        top_layout.setColumnStretch(3, 1)
 
         main_layout.addWidget(top_group)
 
         filter_group = QGroupBox("Filtros e opções")
-        filter_layout = QVBoxLayout(filter_group)
-        filter_layout.setContentsMargins(8, 12, 8, 12)
-        filter_layout.setSpacing(10)
+        filter_layout = QGridLayout(filter_group)
+        filter_layout.setContentsMargins(10, 12, 10, 12)
+        filter_layout.setHorizontalSpacing(14)
+        filter_layout.setVerticalSpacing(10)
 
-        self.path_contains_edit = self._add_labeled_row(filter_layout, "Path contains:")
-        self.tag_edit = self._add_labeled_row(filter_layout, "Tag:")
-        prompt_layout, self.prompt_edit = self._add_labeled_row(filter_layout, "Prompt custom:", return_layout=True)
+        self.path_contains_edit = QLineEdit()
+        self.tag_edit = QLineEdit()
+        self.prompt_edit = QLineEdit()
+        self.target_edit = QLineEdit()
+
+        self._add_form_row(filter_layout, 0, "Path contains:", self.path_contains_edit)
+        self._add_form_row(filter_layout, 1, "Tag:", self.tag_edit)
+
+        prompt_row = self._add_form_row(filter_layout, 2, "Prompt custom:", self.prompt_edit)
         prompt_button = QPushButton("Selecionar")
         prompt_button.clicked.connect(self._choose_prompt_file)
-        prompt_layout.addWidget(prompt_button)
+        prompt_row.addWidget(prompt_button)
 
-        target_layout, self.target_edit = self._add_labeled_row(filter_layout, "Dir export:", return_layout=True)
+        target_row = self._add_form_row(filter_layout, 3, "Dir export:", self.target_edit)
         self.target_button = QPushButton("Selecionar")
         self.target_button.clicked.connect(self._choose_target_dir)
-        target_layout.addWidget(self.target_button)
+        target_row.addWidget(self.target_button)
 
         flags_layout = QHBoxLayout()
         flags_layout.setSpacing(12)
@@ -171,20 +186,24 @@ class MCPGui(QMainWindow):
         flags_layout.addSpacing(12)
         flags_layout.addWidget(self.dry_run_check)
         flags_layout.addStretch()
-        filter_layout.addLayout(flags_layout)
+        filter_layout.addLayout(flags_layout, 4, 0, 1, 2)
 
         main_layout.addWidget(filter_group)
 
         llm_group = QGroupBox("LLM")
-        llm_layout = QVBoxLayout(llm_group)
-        llm_layout.setContentsMargins(8, 12, 8, 12)
-        llm_layout.setSpacing(10)
+        llm_layout = QGridLayout(llm_group)
+        llm_layout.setContentsMargins(10, 12, 10, 12)
+        llm_layout.setHorizontalSpacing(14)
+        llm_layout.setVerticalSpacing(10)
 
-        self.model_edit = self._add_labeled_row(llm_layout, "Modelo:")
-        self.url_edit = self._add_labeled_row(llm_layout, "URL do servidor:")
+        self.model_edit = QLineEdit()
+        self.url_edit = QLineEdit()
+
+        self._add_form_row(llm_layout, 0, "Modelo:", self.model_edit)
+        self._add_form_row(llm_layout, 1, "URL do servidor:", self.url_edit)
 
         actions_layout = QHBoxLayout()
-        actions_layout.setSpacing(8)
+        actions_layout.setSpacing(10)
         check_button = QPushButton("Verificar conectividade")
         check_button.clicked.connect(self.check_connectivity)
         actions_layout.addWidget(check_button)
@@ -201,7 +220,7 @@ class MCPGui(QMainWindow):
         run_button.clicked.connect(self.run_host)
         actions_layout.addWidget(run_button)
         actions_layout.addStretch()
-        llm_layout.addLayout(actions_layout)
+        llm_layout.addLayout(actions_layout, 2, 0, 1, 2)
 
         main_layout.addWidget(llm_group)
 
@@ -232,22 +251,20 @@ class MCPGui(QMainWindow):
         log_layout.addWidget(clear_log, alignment=Qt.AlignmentFlag.AlignRight)
         main_layout.addWidget(log_group, stretch=1)
 
-    def _add_labeled_row(
-        self, layout: QVBoxLayout, label: str, *, return_layout: bool = False
-    ) -> QLineEdit | tuple[QHBoxLayout, QLineEdit]:
-        row_layout = QHBoxLayout()
-        row_layout.setSpacing(10)
+    def _add_form_row(
+        self, layout: QGridLayout, row: int, label: str, widget: QLineEdit
+    ) -> QHBoxLayout:
         lbl = QLabel(label)
-        lbl.setFixedWidth(120)
         lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        row_layout.addWidget(lbl)
-        line_edit = QLineEdit()
-        line_edit.setMinimumWidth(260)
-        row_layout.addWidget(line_edit, stretch=1)
-        layout.addLayout(row_layout)
-        if return_layout:
-            return row_layout, line_edit
-        return line_edit
+        lbl.setMinimumWidth(120)
+        widget.setMinimumWidth(280)
+        row_layout = QHBoxLayout()
+        row_layout.setSpacing(8)
+        row_layout.addWidget(widget)
+        layout.addWidget(lbl, row, 0)
+        layout.addLayout(row_layout, row, 1)
+        layout.setColumnStretch(1, 1)
+        return row_layout
 
     def _choose_prompt_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
