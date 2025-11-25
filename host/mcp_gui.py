@@ -8,14 +8,35 @@ os hosts mostrando o progresso das atividades.
 from __future__ import annotations
 
 import subprocess
+import sys
 import threading
-import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
-from typing import List, Optional
+from typing import Callable, List, Optional
 from urllib.parse import urlsplit
 
 import requests
+
+from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtWidgets import (
+    QApplication,
+    QButtonGroup,
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QProgressBar,
+    QRadioButton,
+    QSpinBox,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 from interactive_cli import DEFAULT_LIMIT, DEFAULT_MIN_RATING, RunConfig
 from mcp_host_lmstudio import LMSTUDIO_MODEL, LMSTUDIO_URL
@@ -27,154 +48,184 @@ def _base_url(full_url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
-class MCPGui(tk.Tk):
+class MCPGui(QMainWindow):
+    log_signal = Signal(str)
+    status_signal = Signal(str)
+    progress_signal = Signal(bool)
+    error_signal = Signal(str)
+
     def __init__(self) -> None:
         super().__init__()
-        self.title("darktable MCP - GUI")
-        self.geometry("960x720")
-        self.minsize(880, 640)
+        self.setWindowTitle("darktable MCP - GUI")
+        self.resize(960, 720)
+        self.setMinimumSize(880, 640)
         self._current_thread: Optional[threading.Thread] = None
 
-        self._build_variables()
+        self.log_signal.connect(self._append_log_ui)
+        self.status_signal.connect(self._set_status_ui)
+        self.progress_signal.connect(self._toggle_progress)
+        self.error_signal.connect(self._show_error)
+
         self._build_layout()
 
-    def _build_variables(self) -> None:
-        self.host_var = tk.StringVar(value="ollama")
-        self.mode_var = tk.StringVar(value="rating")
-        self.source_var = tk.StringVar(value="all")
-        self.path_contains_var = tk.StringVar()
-        self.tag_var = tk.StringVar()
-        self.min_rating_var = tk.IntVar(value=DEFAULT_MIN_RATING)
-        self.only_raw_var = tk.BooleanVar(value=False)
-        self.dry_run_var = tk.BooleanVar(value=True)
-        self.limit_var = tk.IntVar(value=DEFAULT_LIMIT)
-        self.model_var = tk.StringVar()
-        self.url_var = tk.StringVar()
-        self.prompt_file_var = tk.StringVar()
-        self.target_dir_var = tk.StringVar()
-        self.status_var = tk.StringVar(value="Pronto para configurar a execução.")
-
     def _build_layout(self) -> None:
-        main = ttk.Frame(self, padding=12)
-        main.pack(fill=tk.BOTH, expand=True)
+        central = QWidget()
+        self.setCentralWidget(central)
 
-        # Seleção de host e modo
-        top_frame = ttk.LabelFrame(main, text="Parâmetros principais", padding=10)
-        top_frame.pack(fill=tk.X, pady=(0, 10))
+        main_layout = QVBoxLayout(central)
+        main_layout.setContentsMargins(12, 12, 12, 12)
+        main_layout.setSpacing(10)
 
-        host_frame = ttk.Frame(top_frame)
-        host_frame.pack(fill=tk.X, pady=4)
-        ttk.Label(host_frame, text="Framework:").pack(side=tk.LEFT)
-        for value, label in (("ollama", "Ollama"), ("lmstudio", "LM Studio")):
-            ttk.Radiobutton(host_frame, text=label, value=value, variable=self.host_var).pack(
-                side=tk.LEFT, padx=(6, 0)
-            )
+        top_group = QGroupBox("Parâmetros principais")
+        top_layout = QVBoxLayout(top_group)
 
-        mode_frame = ttk.Frame(top_frame)
-        mode_frame.pack(fill=tk.X, pady=4)
-        ttk.Label(mode_frame, text="Modo:").pack(side=tk.LEFT)
-        ttk.Combobox(mode_frame, textvariable=self.mode_var, values=["rating", "tagging", "export"], width=12).pack(
-            side=tk.LEFT, padx=6
-        )
-        ttk.Label(mode_frame, text="Fonte:").pack(side=tk.LEFT, padx=(12, 0))
-        ttk.Combobox(mode_frame, textvariable=self.source_var, values=["all", "path", "tag"], width=12).pack(
-            side=tk.LEFT, padx=6
-        )
-        ttk.Label(mode_frame, text="Rating mínimo:").pack(side=tk.LEFT, padx=(12, 0))
-        ttk.Spinbox(mode_frame, from_=-2, to=5, textvariable=self.min_rating_var, width=5).pack(
-            side=tk.LEFT, padx=6
-        )
-        ttk.Label(mode_frame, text="Limite:").pack(side=tk.LEFT, padx=(12, 0))
-        ttk.Spinbox(mode_frame, from_=1, to=2000, textvariable=self.limit_var, width=7).pack(
-            side=tk.LEFT, padx=6
-        )
+        host_layout = QHBoxLayout()
+        host_layout.addWidget(QLabel("Framework:"))
+        self.host_group = QButtonGroup(self)
+        self.host_ollama = QRadioButton("Ollama")
+        self.host_ollama.setChecked(True)
+        self.host_lmstudio = QRadioButton("LM Studio")
+        self.host_group.addButton(self.host_ollama)
+        self.host_group.addButton(self.host_lmstudio)
+        host_layout.addWidget(self.host_ollama)
+        host_layout.addWidget(self.host_lmstudio)
+        host_layout.addStretch()
+        top_layout.addLayout(host_layout)
 
-        # Filtros
-        filter_frame = ttk.LabelFrame(main, text="Filtros e opções", padding=10)
-        filter_frame.pack(fill=tk.X, pady=(0, 10))
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel("Modo:"))
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItems(["rating", "tagging", "export"])
+        mode_layout.addWidget(self.mode_combo)
+        mode_layout.addSpacing(12)
 
-        path_row = ttk.Frame(filter_frame)
-        path_row.pack(fill=tk.X, pady=4)
-        ttk.Label(path_row, text="Path contains:", width=15).pack(side=tk.LEFT)
-        ttk.Entry(path_row, textvariable=self.path_contains_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        mode_layout.addWidget(QLabel("Fonte:"))
+        self.source_combo = QComboBox()
+        self.source_combo.addItems(["all", "path", "tag"])
+        mode_layout.addWidget(self.source_combo)
+        mode_layout.addSpacing(12)
 
-        tag_row = ttk.Frame(filter_frame)
-        tag_row.pack(fill=tk.X, pady=4)
-        ttk.Label(tag_row, text="Tag:", width=15).pack(side=tk.LEFT)
-        ttk.Entry(tag_row, textvariable=self.tag_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        mode_layout.addWidget(QLabel("Rating mínimo:"))
+        self.min_rating_spin = QSpinBox()
+        self.min_rating_spin.setRange(-2, 5)
+        self.min_rating_spin.setValue(DEFAULT_MIN_RATING)
+        self.min_rating_spin.setFixedWidth(70)
+        mode_layout.addWidget(self.min_rating_spin)
+        mode_layout.addSpacing(12)
 
-        prompt_row = ttk.Frame(filter_frame)
-        prompt_row.pack(fill=tk.X, pady=4)
-        ttk.Label(prompt_row, text="Prompt custom:", width=15).pack(side=tk.LEFT)
-        ttk.Entry(prompt_row, textvariable=self.prompt_file_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Button(prompt_row, text="Selecionar", command=self._choose_prompt_file).pack(side=tk.LEFT, padx=6)
+        mode_layout.addWidget(QLabel("Limite:"))
+        self.limit_spin = QSpinBox()
+        self.limit_spin.setRange(1, 2000)
+        self.limit_spin.setValue(DEFAULT_LIMIT)
+        self.limit_spin.setFixedWidth(90)
+        mode_layout.addWidget(self.limit_spin)
+        mode_layout.addStretch()
+        top_layout.addLayout(mode_layout)
 
-        target_row = ttk.Frame(filter_frame)
-        target_row.pack(fill=tk.X, pady=4)
-        ttk.Label(target_row, text="Dir export:", width=15).pack(side=tk.LEFT)
-        ttk.Entry(target_row, textvariable=self.target_dir_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Button(target_row, text="Selecionar", command=self._choose_target_dir).pack(side=tk.LEFT, padx=6)
+        main_layout.addWidget(top_group)
 
-        flags_row = ttk.Frame(filter_frame)
-        flags_row.pack(fill=tk.X, pady=4)
-        ttk.Checkbutton(flags_row, text="Apenas RAW", variable=self.only_raw_var).pack(side=tk.LEFT, padx=(0, 12))
-        ttk.Checkbutton(flags_row, text="Dry-run", variable=self.dry_run_var).pack(side=tk.LEFT)
+        filter_group = QGroupBox("Filtros e opções")
+        filter_layout = QVBoxLayout(filter_group)
 
-        # LLM
-        llm_frame = ttk.LabelFrame(main, text="LLM", padding=10)
-        llm_frame.pack(fill=tk.X, pady=(0, 10))
+        self.path_contains_edit = self._add_labeled_row(filter_layout, "Path contains:")
+        self.tag_edit = self._add_labeled_row(filter_layout, "Tag:")
+        prompt_layout, self.prompt_edit = self._add_labeled_row(filter_layout, "Prompt custom:", return_layout=True)
+        prompt_button = QPushButton("Selecionar")
+        prompt_button.clicked.connect(self._choose_prompt_file)
+        prompt_layout.addWidget(prompt_button)
 
-        model_row = ttk.Frame(llm_frame)
-        model_row.pack(fill=tk.X, pady=4)
-        ttk.Label(model_row, text="Modelo:", width=15).pack(side=tk.LEFT)
-        ttk.Entry(model_row, textvariable=self.model_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        target_layout, self.target_edit = self._add_labeled_row(filter_layout, "Dir export:", return_layout=True)
+        target_button = QPushButton("Selecionar")
+        target_button.clicked.connect(self._choose_target_dir)
+        target_layout.addWidget(target_button)
 
-        url_row = ttk.Frame(llm_frame)
-        url_row.pack(fill=tk.X, pady=4)
-        ttk.Label(url_row, text="URL do servidor:", width=15).pack(side=tk.LEFT)
-        ttk.Entry(url_row, textvariable=self.url_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        flags_layout = QHBoxLayout()
+        self.only_raw_check = QCheckBox("Apenas RAW")
+        self.dry_run_check = QCheckBox("Dry-run")
+        self.dry_run_check.setChecked(True)
+        flags_layout.addWidget(self.only_raw_check)
+        flags_layout.addSpacing(12)
+        flags_layout.addWidget(self.dry_run_check)
+        flags_layout.addStretch()
+        filter_layout.addLayout(flags_layout)
 
-        action_row = ttk.Frame(llm_frame)
-        action_row.pack(fill=tk.X, pady=8)
-        ttk.Button(action_row, text="Verificar conectividade", command=self.check_connectivity).pack(
-            side=tk.LEFT
-        )
-        ttk.Button(action_row, text="Listar modelos", command=self.list_models).pack(side=tk.LEFT, padx=6)
-        ttk.Button(action_row, text="Executar host", command=self.run_host).pack(side=tk.LEFT, padx=6)
+        main_layout.addWidget(filter_group)
 
-        # Status e log
-        status_frame = ttk.Frame(main)
-        status_frame.pack(fill=tk.X, pady=(4, 2))
-        ttk.Label(status_frame, textvariable=self.status_var).pack(side=tk.LEFT, anchor=tk.W)
-        self.progress = ttk.Progressbar(status_frame, mode="indeterminate", length=180)
-        self.progress.pack(side=tk.RIGHT)
+        llm_group = QGroupBox("LLM")
+        llm_layout = QVBoxLayout(llm_group)
 
-        log_frame = ttk.LabelFrame(main, text="Log", padding=8)
-        log_frame.pack(fill=tk.BOTH, expand=True)
-        self.log_text = tk.Text(log_frame, wrap=tk.WORD, height=16)
-        self.log_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar = ttk.Scrollbar(log_frame, command=self.log_text.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.log_text.config(yscrollcommand=scrollbar.set)
+        self.model_edit = self._add_labeled_row(llm_layout, "Modelo:")
+        self.url_edit = self._add_labeled_row(llm_layout, "URL do servidor:")
+
+        actions_layout = QHBoxLayout()
+        check_button = QPushButton("Verificar conectividade")
+        check_button.clicked.connect(self.check_connectivity)
+        actions_layout.addWidget(check_button)
+
+        list_button = QPushButton("Listar modelos")
+        list_button.clicked.connect(self.list_models)
+        actions_layout.addWidget(list_button)
+
+        run_button = QPushButton("Executar host")
+        run_button.clicked.connect(self.run_host)
+        actions_layout.addWidget(run_button)
+        actions_layout.addStretch()
+        llm_layout.addLayout(actions_layout)
+
+        main_layout.addWidget(llm_group)
+
+        status_layout = QHBoxLayout()
+        self.status_label = QLabel("Pronto para configurar a execução.")
+        status_layout.addWidget(self.status_label, alignment=Qt.AlignmentFlag.AlignLeft)
+        self.progress = QProgressBar()
+        self.progress.setFixedWidth(180)
+        self.progress.setRange(0, 1)
+        self.progress.setValue(0)
+        status_layout.addWidget(self.progress)
+        main_layout.addLayout(status_layout)
+
+        log_group = QGroupBox("Log")
+        log_layout = QVBoxLayout(log_group)
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        log_layout.addWidget(self.log_text)
+        main_layout.addWidget(log_group, stretch=1)
+
+    def _add_labeled_row(
+        self, layout: QVBoxLayout, label: str, *, return_layout: bool = False
+    ) -> QLineEdit | tuple[QHBoxLayout, QLineEdit]:
+        row_layout = QHBoxLayout()
+        lbl = QLabel(label)
+        lbl.setFixedWidth(100)
+        row_layout.addWidget(lbl)
+        line_edit = QLineEdit()
+        row_layout.addWidget(line_edit, stretch=1)
+        layout.addLayout(row_layout)
+        if return_layout:
+            return row_layout, line_edit
+        return line_edit
 
     def _choose_prompt_file(self) -> None:
-        path = filedialog.askopenfilename(title="Escolher prompt", filetypes=[("Markdown", "*.md"), ("Todos", "*.*")])
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Escolher prompt", "", "Markdown (*.md);;Todos (*.*)"
+        )
         if path:
-            self.prompt_file_var.set(path)
+            self.prompt_edit.setText(path)
 
     def _choose_target_dir(self) -> None:
-        path = filedialog.askdirectory(title="Escolher diretório de export")
+        path = QFileDialog.getExistingDirectory(self, "Escolher diretório de export")
         if path:
-            self.target_dir_var.set(path)
+            self.target_edit.setText(path)
 
     # --------------------------- Tarefas assíncronas ---------------------------
-    def _run_async(self, description: str, target) -> None:
+    def _run_async(self, description: str, target: Callable[[], None]) -> None:
         if self._current_thread and self._current_thread.is_alive():
-            messagebox.showwarning("Execução em andamento", "Aguarde a finalização da tarefa atual.")
+            QMessageBox.warning(self, "Execução em andamento", "Aguarde a finalização da tarefa atual.")
             return
 
-        self.status_var.set(description)
-        self.progress.start(10)
+        self.status_signal.emit(description)
+        self.progress_signal.emit(True)
         self._current_thread = threading.Thread(target=self._wrap_task, args=(target,), daemon=True)
         self._current_thread.start()
 
@@ -183,35 +234,46 @@ class MCPGui(tk.Tk):
             target()
         except Exception as exc:  # noqa: BLE001 (feedback no log é importante aqui)
             self._append_log(f"[erro] {exc}")
-            self._after_ui(lambda: messagebox.showerror("Erro", str(exc)))
+            self.error_signal.emit(str(exc))
         finally:
-            self._after_ui(self._stop_progress)
-
-    def _after_ui(self, func) -> None:
-        self.after(0, func)
-
-    def _stop_progress(self) -> None:
-        self.progress.stop()
-        self.status_var.set("Pronto.")
+            self.progress_signal.emit(False)
 
     def _append_log(self, text: str) -> None:
-        def _inner():
-            self.log_text.insert(tk.END, text + "\n")
-            self.log_text.see(tk.END)
+        self.log_signal.emit(text)
 
-        self._after_ui(_inner)
+    @Slot(str)
+    def _append_log_ui(self, text: str) -> None:
+        self.log_text.append(text)
+        self.log_text.verticalScrollBar().setValue(self.log_text.verticalScrollBar().maximum())
+
+    @Slot(str)
+    def _set_status_ui(self, text: str) -> None:
+        self.status_label.setText(text)
+
+    @Slot(bool)
+    def _toggle_progress(self, running: bool) -> None:
+        if running:
+            self.progress.setRange(0, 0)
+        else:
+            self.progress.setRange(0, 1)
+            self.progress.setValue(0)
+            self.status_label.setText("Pronto.")
+
+    @Slot(str)
+    def _show_error(self, message: str) -> None:
+        QMessageBox.critical(self, "Erro", message)
 
     # --------------------------- Conectividade ---------------------------
     def check_connectivity(self) -> None:
         def task():
-            host = self.host_var.get()
-            url = self.url_var.get().strip() or (OLLAMA_URL if host == "ollama" else LMSTUDIO_URL)
+            host = self._selected_host()
+            url = self.url_edit.text().strip() or (OLLAMA_URL if host == "ollama" else LMSTUDIO_URL)
             if host == "ollama":
                 message = self._check_ollama(url)
             else:
                 message = self._check_lmstudio(url)
             self._append_log(message)
-            self._after_ui(lambda: self.status_var.set(message))
+            self.status_signal.emit(message)
 
         self._run_async("Verificando conectividade...", task)
 
@@ -235,8 +297,8 @@ class MCPGui(tk.Tk):
     # --------------------------- Modelos ---------------------------
     def list_models(self) -> None:
         def task():
-            host = self.host_var.get()
-            url = self.url_var.get().strip() or (OLLAMA_URL if host == "ollama" else LMSTUDIO_URL)
+            host = self._selected_host()
+            url = self.url_edit.text().strip() or (OLLAMA_URL if host == "ollama" else LMSTUDIO_URL)
             if host == "ollama":
                 names = self._list_ollama_models(url)
             else:
@@ -268,7 +330,7 @@ class MCPGui(tk.Tk):
         try:
             config = self._build_config()
         except ValueError as exc:
-            messagebox.showerror("Parâmetros inválidos", str(exc))
+            QMessageBox.critical(self, "Parâmetros inválidos", str(exc))
             return
 
         def task():
@@ -287,15 +349,15 @@ class MCPGui(tk.Tk):
         self._run_async("Executando host...", task)
 
     def _build_config(self) -> RunConfig:
-        host = self.host_var.get()
-        mode = self.mode_var.get()
-        source = self.source_var.get()
+        host = self._selected_host()
+        mode = self.mode_combo.currentText()
+        source = self.source_combo.currentText()
 
-        path_contains = self.path_contains_var.get().strip() or None
-        tag = self.tag_var.get().strip() or None
-        prompt_file_input = self.prompt_file_var.get().strip() or None
+        path_contains = self.path_contains_edit.text().strip() or None
+        tag = self.tag_edit.text().strip() or None
+        prompt_file_input = self.prompt_edit.text().strip() or None
         prompt_file = Path(prompt_file_input).expanduser() if prompt_file_input else None
-        target_dir = self.target_dir_var.get().strip() or None
+        target_dir = self.target_edit.text().strip() or None
 
         if source == "path" and not path_contains:
             raise ValueError("'Path contains' é obrigatório quando a fonte é 'path'.")
@@ -313,21 +375,26 @@ class MCPGui(tk.Tk):
             source=source,
             path_contains=path_contains,
             tag=tag,
-            min_rating=int(self.min_rating_var.get()),
-            only_raw=bool(self.only_raw_var.get()),
-            dry_run=bool(self.dry_run_var.get()),
-            limit=int(self.limit_var.get()),
-            model=self.model_var.get().strip() or model_default,
-            llm_url=self.url_var.get().strip() or url_default,
+            min_rating=int(self.min_rating_spin.value()),
+            only_raw=bool(self.only_raw_check.isChecked()),
+            dry_run=bool(self.dry_run_check.isChecked()),
+            limit=int(self.limit_spin.value()),
+            model=self.model_edit.text().strip() or model_default,
+            llm_url=self.url_edit.text().strip() or url_default,
             target_dir=target_dir,
             prompt_file=prompt_file,
             extra_flags=[],
         )
 
+    def _selected_host(self) -> str:
+        return "ollama" if self.host_ollama.isChecked() else "lmstudio"
+
 
 def main() -> None:
-    app = MCPGui()
-    app.mainloop()
+    qt_app = QApplication(sys.argv)
+    window = MCPGui()
+    window.show()
+    qt_app.exec()
 
 
 if __name__ == "__main__":
