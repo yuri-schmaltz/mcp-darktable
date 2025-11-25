@@ -12,6 +12,14 @@ em fluxos de tratamento em lote (rating, tagging, export).
 - `logs/` — logs em JSON de cada execução.
 - `host/interactive_cli.py` — interface interativa em terminal que monta e executa os hosts acima.
 
+## Limites e opções rápidas
+
+| Modo/ação         | Rating mínimo | Rating máximo | Formatos de export suportados | Opções obrigatórias |
+|-------------------|---------------|---------------|--------------------------------|----------------------|
+| Filtragem/listagem| -1 (rejeitado) | 5            | —                              | `path_contains` com `--source path`; `tag` com `--source tag`. |
+| Rating            | -1 (rejeitado) | 5            | —                              | Nenhuma (mas defina `--limit` para amostras menores). |
+| Export            | n/a           | n/a           | Somente formatos alfanuméricos (padrão `jpg`) | `--target-dir` (criado automaticamente se não existir). |
+
 ## Pré-requisitos
 
 - Linux
@@ -156,6 +164,28 @@ python host/mcp_host_lmstudio.py --mode rating --source all --dry-run
 Depois é só adaptar os parâmetros de linha de comando para `tagging` e `export`.
 
 Para ver a versão do host ou confirmar dependências antes de rodar, use `--version` e `--check-deps`.
+
+## Logs e diagnóstico
+
+- Os hosts salvam sempre um JSON em `logs/batch-<modo>-<timestamp>.json` com a amostra enviada ao modelo,
+  a resposta bruta e metadados como o modo e a fonte. Anote o caminho impresso na saída para abrir o arquivo
+  correto depois de cada execução.
+- Os logs facilitam reproduzir falhas: registre o `mode`, `source` e o trecho de imagens (`images_sample`)
+  ao abrir um relatório para depuração.
+- Caso precise compartilhar logs, remova ou anonimize caminhos e nomes de arquivos antes de enviar.
+
+## Troubleshooting rápido
+
+- **`target_dir deve ser string não vazia` ou `target_dir is required`**: o export exige `--target-dir` com
+  um nome simples (sem quebras de linha). Se o diretório não existir, ele é criado automaticamente; passe
+  `--target-dir out_job_x` ou similar.
+- **`format deve conter apenas letras/números`**: use formatos alfanuméricos como `jpg` ou `tif` no `--format`.
+- **`darktable-cli não encontrado no PATH`**: instale o pacote do darktable com CLI ou ajuste o PATH antes de
+  exportar. No Linux, confirmar com `which darktable-cli` e reinstalar via gerenciador de pacotes se necessário.
+- **Export falha para caminhos específicos**: verifique permissões e se o disco está acessível; o stderr do host
+  lista cada ID que falhou e o comando usado. Use `--dry-run` antes para validar caminhos e formatos.
+- **Erros ao baixar ou usar modelos**: confira se o servidor Ollama/LM Studio está em execução e se o modelo
+  existe localmente. Rode `python host/mcp_host_ollama.py --check-deps` para validar dependências rapidamente.
 
 ## Formato esperado de respostas do LLM
 
