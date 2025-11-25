@@ -13,8 +13,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DT_SERVER_CMD = ["lua", str(BASE_DIR / "server" / "dt_mcp_server.lua")]
 
 # Config padrão do Ollama
-OLLAMA_URL = "http://localhost:11434/api/chat"
+OLLAMA_URL = "http://localhost:11434"
 OLLAMA_MODEL = "llama3.1"  # ajuste pro modelo que você tiver
+POPULAR_MODELS = [
+    "llama3.2",
+    "llama3.1",
+    "phi3",
+    "mistral",
+    "gemma2",
+]
 PROTOCOL_VERSION = "2024-11-05"
 APP_VERSION = "0.2.0"
 CLIENT_INFO = {"name": "darktable-mcp-ollama", "version": APP_VERSION}
@@ -23,11 +30,17 @@ LOG_DIR = BASE_DIR / "logs"
 PROMPT_DIR = BASE_DIR / "config" / "prompts"
 
 
-# --------- UTIL: chamada ao Ollama ---------
+# --------- UTIL: chamada ao Ollama / downloads ---------
+def _normalize_base_url(url: str | None) -> str:
+    base = url or OLLAMA_URL
+    return base.rstrip("/")
+
+
 def call_ollama(system_prompt, user_prompt, model=None, url=None):
-    url = url or OLLAMA_URL
+    base = _normalize_base_url(url)
     model = model or OLLAMA_MODEL
 
+    chat_url = f"{base}/api/chat"
     payload = {
         "model": model,
         "messages": [
@@ -36,10 +49,33 @@ def call_ollama(system_prompt, user_prompt, model=None, url=None):
         ],
         "stream": False,
     }
-    resp = requests.post(url, json=payload)
+    resp = requests.post(chat_url, json=payload)
     resp.raise_for_status()
     data = resp.json()
     return data["message"]["content"]
+
+
+def pull_ollama_model(model: str, url: str | None = None):
+    base = _normalize_base_url(url)
+    pull_url = f"{base}/api/pull"
+    resp = requests.post(pull_url, json={"model": model}, stream=True, timeout=5)
+    resp.raise_for_status()
+
+    statuses = []
+    for line in resp.iter_lines():
+        if not line:
+            continue
+        try:
+            data = json.loads(line.decode("utf-8"))
+        except Exception:
+            continue
+        status = data.get("status") or data.get("message")
+        if status:
+            statuses.append(status)
+
+    if not statuses:
+        statuses.append("Download iniciado; acompanhe logs do Ollama para progresso.")
+    return statuses
 
 
 # --------- UTIL: cliente MCP (stdio) ---------
@@ -117,6 +153,13 @@ def parse_args():
     p.add_argument("--limit", type=int, default=200, help="Limite de imagens enviadas ao modelo.")
     p.add_argument("--model", help="Nome do modelo no Ollama.")
     p.add_argument("--ollama-url", help="URL do servidor Ollama.")
+    p.add_argument(
+        "--download-model",
+        help=(
+            "Baixa um modelo no Ollama antes de executar. Exemplos populares: "
+            + ", ".join(POPULAR_MODELS)
+        ),
+    )
     p.add_argument(
         "--target-dir",
         help="Diretório de saída para export (obrigatório em --mode export).",
@@ -390,6 +433,16 @@ def main():
 
     # Apenas garante que diretórios existem
     LOG_DIR.mkdir(exist_ok=True)
+
+    target_model = args.download_model
+    if target_model:
+        try:
+            statuses = pull_ollama_model(target_model, args.ollama_url)
+            print(f"[download] Progresso do download de '{target_model}':")
+            for status in statuses:
+                print("  -", status)
+        except Exception as exc:
+            print(f"[download] Falha ao iniciar download de '{target_model}': {exc}")
 
     try:
         client = McpClient(DT_SERVER_CMD)
