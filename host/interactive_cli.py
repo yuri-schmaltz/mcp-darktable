@@ -38,6 +38,7 @@ class RunConfig:
     llm_url: Optional[str] = None
     target_dir: Optional[str] = None
     prompt_file: Optional[Path] = None
+    text_only: bool = False
     extra_flags: List[str] = field(default_factory=list)
 
     def build_command(self) -> List[str]:
@@ -70,6 +71,8 @@ class RunConfig:
             cmd += ["--prompt-file", str(self.prompt_file)]
         if self.mode == "export" and self.target_dir:
             cmd += ["--target-dir", self.target_dir]
+        if self.text_only:
+            cmd.append("--text-only")
 
         cmd.extend(self.extra_flags)
         return cmd
@@ -138,6 +141,9 @@ def gather_config() -> RunConfig:
     limit = _ask_int("Limite de imagens enviadas ao modelo", DEFAULT_LIMIT)
     only_raw = _ask_yes_no("Enviar apenas arquivos RAW?", default=False)
     dry_run = _ask_yes_no("Executar em modo DRY-RUN?", default=True)
+    text_only = not _ask_yes_no(
+        "Anexar as imagens ao modelo (multimodal)?", default=True
+    )
 
     model_default = (
         mcp_host_ollama.OLLAMA_MODEL if host == "ollama" else mcp_host_lmstudio.LMSTUDIO_MODEL
@@ -175,6 +181,7 @@ def gather_config() -> RunConfig:
         llm_url=llm_url,
         target_dir=target_dir,
         prompt_file=prompt_file,
+        text_only=text_only,
         extra_flags=extra_flags,
     )
 
@@ -205,6 +212,7 @@ def main() -> None:
     print(f"URL do servidor: {config.llm_url or default_url}")
     if config.prompt_file:
         print(f"Prompt personalizado: {config.prompt_file}")
+    print(f"Enviar imagens ao modelo: {'não (texto/metadados)' if config.text_only else 'sim (multimodal)'}")
     if config.target_dir:
         print(f"Diretório de export: {config.target_dir}")
     if config.extra_flags:

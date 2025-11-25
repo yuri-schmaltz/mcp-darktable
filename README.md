@@ -12,6 +12,15 @@ em fluxos de tratamento em lote (rating, tagging, export).
 - `logs/` — logs em JSON de cada execução.
 - `host/interactive_cli.py` — interface interativa em terminal que monta e executa os hosts acima.
 
+## Suporte a visão / multimodal
+
+- Os hosts enviam a PRÓPRIA imagem (base64) junto aos metadados para modelos que suportam visão
+  (ex.: Llama 3.2 Vision, Qwen-VL, LLaVA). Isso permite avaliar nitidez, exposição e duplicatas
+  de forma real, não apenas por heurísticas de filename.
+- Use `--text-only` caso queira desabilitar o envio de imagens e operar apenas com metadados.
+- Garanta que o servidor LLM aceite mensagens multimodais (OpenAI-compatible com `image_url` ou
+  API do Ollama com campo `images`).
+
 ## Limites e opções rápidas
 
 | Modo/ação         | Rating mínimo | Rating máximo | Formatos de export suportados | Opções obrigatórias |
@@ -67,6 +76,10 @@ Certifique-se de que o Ollama está rodando e que um modelo foi baixado (o ender
 ollama serve
 ollama pull llama3.1  # ou use --download-model no host
 ```
+
+Para análise visual, use um modelo multimodal (ex.: `llama3.2-vision`, `qwen2.5-vl`) e mantenha o host
+em modo padrão (multimodal). Caso precise economizar banda/processamento, passe `--text-only` para
+voltar ao comportamento baseado apenas em metadados.
 
 Depois:
 
@@ -160,6 +173,9 @@ Exemplo:
 ```bash
 python host/mcp_host_lmstudio.py --mode rating --source all --dry-run
 ```
+
+Escolha um modelo com suporte a visão (por exemplo, checkpoints *Vision* servidos via API OpenAI-like).
+Use `--text-only` se quiser cair no fluxo antigo baseado apenas em metadados.
 
 Depois é só adaptar os parâmetros de linha de comando para `tagging` e `export`.
 

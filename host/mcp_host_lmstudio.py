@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 import argparse
+import base64
 import json
+import mimetypes
 import shutil
 import subprocess
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterable
 
 import requests
 
@@ -43,6 +47,30 @@ def call_lmstudio(system_prompt, user_prompt, model=None, url=None):
     resp.raise_for_status()
     data = resp.json()
     # API OpenAI-like
+    content = data["choices"][0]["message"]["content"]
+    meta = {
+        "model": model,
+        "url": url,
+        "status_code": resp.status_code,
+        "latency_ms": elapsed_ms,
+    }
+    return content, meta
+
+
+def call_lmstudio_messages(messages, model=None, url=None):
+    url = url or LMSTUDIO_URL
+    model = model or LMSTUDIO_MODEL
+
+    payload = {
+        "model": model,
+        "messages": messages,
+        "stream": False,
+    }
+    started = time.time()
+    resp = requests.post(url, json=payload)
+    elapsed_ms = int((time.time() - started) * 1000)
+    resp.raise_for_status()
+    data = resp.json()
     content = data["choices"][0]["message"]["content"]
     meta = {
         "model": model,
@@ -141,6 +169,11 @@ def parse_args():
         "--prompt-file",
         help="Override do prompt (caminho para .md)."
     )
+    p.add_argument(
+        "--text-only",
+        action="store_true",
+        help="Não envia a imagem ao modelo (usa só metadados).",
+    )
     return p.parse_args()
 
 
@@ -162,6 +195,95 @@ def load_prompt(mode, prompt_file=None):
     if not path.exists():
         raise FileNotFoundError(f"Prompt não encontrado: {path}")
     return path.read_text(encoding="utf-8")
+
+
+# --------- UTIL: multimodal / imagens ----------
+@dataclass
+class VisionImage:
+    meta: dict
+    path: Path
+    b64: str
+    data_url: str
+
+
+def encode_image_to_base64(image_path: Path) -> tuple[str, str]:
+    raw = image_path.read_bytes()
+    b64 = base64.b64encode(raw).decode("ascii")
+    mime, _ = mimetypes.guess_type(image_path.name)
+    mime = mime or "image/jpeg"
+    data_url = f"data:{mime};base64,{b64}"
+    return b64, data_url
+
+
+def prepare_vision_payloads(images: Iterable[dict], attach_images: bool = True):
+    payloads: list[VisionImage] = []
+    errors: list[str] = []
+
+    if not attach_images:
+        return payloads, errors
+
+    for img in images:
+        image_path = Path(img.get("path", "")) / str(img.get("filename", ""))
+        try:
+            b64, data_url = encode_image_to_base64(image_path)
+        except FileNotFoundError:
+            errors.append(f"Arquivo não encontrado: {image_path}")
+            continue
+        except OSError as exc:
+            errors.append(f"Falha ao ler {image_path}: {exc}")
+            continue
+
+        payloads.append(
+            VisionImage(
+                meta=img,
+                path=image_path,
+                b64=b64,
+                data_url=data_url,
+            )
+        )
+
+    return payloads, errors
+
+
+def fallback_user_prompt(sample):
+    return "Lista (amostra) de imagens do darktable:\n" + json.dumps(sample, ensure_ascii=False)
+
+
+def build_lmstudio_messages_for_images(
+    system_prompt: str, sample: list[dict], vision_images: list[VisionImage]
+):
+    if not vision_images:
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": fallback_user_prompt(sample)},
+        ]
+
+    messages = [{"role": "system", "content": system_prompt}]
+    for item in vision_images:
+        meta = item.meta
+        colorlabels = ",".join(meta.get("colorlabels", []))
+        description = (
+            "Analise a imagem e sugira correções e tags coerentes. "
+            f"id={meta.get('id')} path={item.path} rating_atual={meta.get('rating')} "
+            f"raw={meta.get('is_raw')} colorlabels=[{colorlabels}]"
+        )
+        messages.append(
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": description},
+                    {"type": "image_url", "image_url": {"url": item.data_url}},
+                ],
+            }
+        )
+
+    messages.append(
+        {
+            "role": "user",
+            "content": "Retorne um único JSON cobrindo todas as imagens acima, seguindo o formato solicitado.",
+        }
+    )
+    return messages
 
 
 # --------- UTIL: buscar imagens ----------
@@ -269,13 +391,16 @@ def run_mode_rating(client, args):
 
     sample = images[: args.limit]
     system_prompt = load_prompt("rating", args.prompt_file)
-    user_prompt = "Lista (amostra) de imagens do darktable:\n" + json.dumps(
-        sample, ensure_ascii=False
-    )
+    vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
+    if vision_errors:
+        print("[rating] Avisos ao carregar imagens:")
+        for warn in vision_errors:
+            print("  -", warn)
 
-    answer, meta = call_lmstudio(
-        system_prompt,
-        user_prompt,
+    messages = build_lmstudio_messages_for_images(system_prompt, sample, vision_images)
+
+    answer, meta = call_lmstudio_messages(
+        messages,
         model=args.model or LMSTUDIO_MODEL,
         url=args.lm_url or LMSTUDIO_URL,
     )
@@ -286,7 +411,20 @@ def run_mode_rating(client, args):
     print("[rating] Resposta bruta do modelo:")
     print(answer)
 
-    log_file = save_log("rating", args.source, sample, answer, extra={"llm": meta})
+    log_file = save_log(
+        "rating",
+        args.source,
+        sample,
+        answer,
+        extra={
+            "llm": meta,
+            "vision": {
+                "attached": len(vision_images),
+                "errors": vision_errors,
+                "mode": "text-only" if args.text_only else "multimodal",
+            },
+        },
+    )
     print(f"[rating] Log salvo em: {log_file}")
 
     try:
@@ -319,13 +457,16 @@ def run_mode_tagging(client, args):
 
     sample = images[: args.limit]
     system_prompt = load_prompt("tagging", args.prompt_file)
-    user_prompt = "Lista (amostra) de imagens do darktable:\n" + json.dumps(
-        sample, ensure_ascii=False
-    )
+    vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
+    if vision_errors:
+        print("[tagging] Avisos ao carregar imagens:")
+        for warn in vision_errors:
+            print("  -", warn)
 
-    answer, meta = call_lmstudio(
-        system_prompt,
-        user_prompt,
+    messages = build_lmstudio_messages_for_images(system_prompt, sample, vision_images)
+
+    answer, meta = call_lmstudio_messages(
+        messages,
         model=args.model or LMSTUDIO_MODEL,
         url=args.lm_url or LMSTUDIO_URL,
     )
@@ -336,7 +477,20 @@ def run_mode_tagging(client, args):
     print("[tagging] Resposta bruta do modelo:")
     print(answer)
 
-    log_file = save_log("tagging", args.source, sample, answer, extra={"llm": meta})
+    log_file = save_log(
+        "tagging",
+        args.source,
+        sample,
+        answer,
+        extra={
+            "llm": meta,
+            "vision": {
+                "attached": len(vision_images),
+                "errors": vision_errors,
+                "mode": "text-only" if args.text_only else "multimodal",
+            },
+        },
+    )
     print(f"[tagging] Log salvo em: {log_file}")
 
     try:
@@ -382,13 +536,16 @@ def run_mode_export(client, args):
 
     sample = images[: args.limit]
     system_prompt = load_prompt("export", args.prompt_file)
-    user_prompt = "Lista (amostra) de imagens do darktable:\n" + json.dumps(
-        sample, ensure_ascii=False
-    )
+    vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
+    if vision_errors:
+        print("[export] Avisos ao carregar imagens:")
+        for warn in vision_errors:
+            print("  -", warn)
 
-    answer, meta = call_lmstudio(
-        system_prompt,
-        user_prompt,
+    messages = build_lmstudio_messages_for_images(system_prompt, sample, vision_images)
+
+    answer, meta = call_lmstudio_messages(
+        messages,
         model=args.model or LMSTUDIO_MODEL,
         url=args.lm_url or LMSTUDIO_URL,
     )
@@ -404,7 +561,15 @@ def run_mode_export(client, args):
         args.source,
         sample,
         answer,
-        extra={"target_dir": args.target_dir, "llm": meta},
+        extra={
+            "target_dir": args.target_dir,
+            "llm": meta,
+            "vision": {
+                "attached": len(vision_images),
+                "errors": vision_errors,
+                "mode": "text-only" if args.text_only else "multimodal",
+            },
+        },
     )
     print(f"[export] Log salvo em: {log_file}")
 

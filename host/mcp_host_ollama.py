@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 import argparse
+import base64
 import json
+import mimetypes
 import shutil
 import subprocess
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterable
 
 import requests
 
@@ -47,6 +51,22 @@ def call_ollama(system_prompt, user_prompt, model=None, url=None):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
+        "stream": False,
+    }
+    resp = requests.post(chat_url, json=payload)
+    resp.raise_for_status()
+    data = resp.json()
+    return data["message"]["content"]
+
+
+def call_ollama_messages(messages, model=None, url=None):
+    base = _normalize_base_url(url)
+    model = model or OLLAMA_MODEL
+
+    chat_url = f"{base}/api/chat"
+    payload = {
+        "model": model,
+        "messages": messages,
         "stream": False,
     }
     resp = requests.post(chat_url, json=payload)
@@ -173,6 +193,11 @@ def parse_args():
         action="store_true",
         help="Valida a presença de 'lua' e 'darktable-cli' antes de executar.",
     )
+    p.add_argument(
+        "--text-only",
+        action="store_true",
+        help="Não envia a imagem ao modelo (modo texto/metadados).",
+    )
     return p.parse_args()
 
 
@@ -196,8 +221,89 @@ def load_prompt(mode, prompt_file=None):
     return path.read_text(encoding="utf-8")
 
 
-# --------- UTIL: buscar imagens ----------
 
+# --------- UTIL: multimodal / imagens ----------
+@dataclass
+class VisionImage:
+    meta: dict
+    path: Path
+    b64: str
+    data_url: str
+
+
+def encode_image_to_base64(image_path: Path) -> tuple[str, str]:
+    raw = image_path.read_bytes()
+    b64 = base64.b64encode(raw).decode("ascii")
+    mime, _ = mimetypes.guess_type(image_path.name)
+    mime = mime or "image/jpeg"
+    data_url = f"data:{mime};base64,{b64}"
+    return b64, data_url
+
+
+def prepare_vision_payloads(images: Iterable[dict], attach_images: bool = True):
+    payloads: list[VisionImage] = []
+    errors: list[str] = []
+
+    if not attach_images:
+        return payloads, errors
+
+    for img in images:
+        image_path = Path(img.get("path", "")) / str(img.get("filename", ""))
+        try:
+            b64, data_url = encode_image_to_base64(image_path)
+        except FileNotFoundError:
+            errors.append(f"Arquivo não encontrado: {image_path}")
+            continue
+        except OSError as exc:
+            errors.append(f"Falha ao ler {image_path}: {exc}")
+            continue
+
+        payloads.append(
+            VisionImage(
+                meta=img,
+                path=image_path,
+                b64=b64,
+                data_url=data_url,
+            )
+        )
+
+    return payloads, errors
+
+
+def fallback_user_prompt(sample):
+    return "Lista (amostra) de imagens do darktable:\n" + json.dumps(sample, ensure_ascii=False)
+
+
+def build_ollama_messages_for_images(
+    system_prompt: str, sample: list[dict], vision_images: list[VisionImage]
+):
+    if not vision_images:
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": fallback_user_prompt(sample)},
+        ]
+
+    messages = [{"role": "system", "content": system_prompt}]
+    for item in vision_images:
+        meta = item.meta
+        colorlabels = ",".join(meta.get("colorlabels", []))
+        description = (
+            "Avalie a imagem a seguir e proponha ajustes para pós-processo. "
+            f"id={meta.get('id')} path={item.path} rating_atual={meta.get('rating')} "
+            f"raw={meta.get('is_raw')} colorlabels=[{colorlabels}]"
+        )
+        messages.append({"role": "user", "content": description, "images": [item.b64]})
+
+    messages.append(
+        {
+            "role": "user",
+            "content": "Retorne um único JSON cobrindo todas as imagens acima, seguindo o formato solicitado.",
+        }
+    )
+    return messages
+
+
+# --------- UTIL: buscar imagens ----------
 def fetch_images(client, args):
     params = {
         "min_rating": args.min_rating,
@@ -285,20 +391,35 @@ def run_mode_rating(client, args):
 
     sample = images[: args.limit]
     system_prompt = load_prompt("rating", args.prompt_file)
-    user_prompt = "Lista (amostra) de imagens do darktable:\n" + json.dumps(
-        sample, ensure_ascii=False
-    )
+    vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
+    if vision_errors:
+        print("[rating] Avisos ao carregar imagens:")
+        for warn in vision_errors:
+            print("  -", warn)
 
-    answer = call_ollama(
-        system_prompt,
-        user_prompt,
+    messages = build_ollama_messages_for_images(system_prompt, sample, vision_images)
+
+    answer = call_ollama_messages(
+        messages,
         model=args.model or OLLAMA_MODEL,
         url=args.ollama_url or OLLAMA_URL,
     )
     print("[rating] Resposta bruta do modelo:")
     print(answer)
 
-    log_file = save_log("rating", args.source, sample, answer)
+    log_file = save_log(
+        "rating",
+        args.source,
+        sample,
+        answer,
+        extra={
+            "vision": {
+                "attached": len(vision_images),
+                "errors": vision_errors,
+                "mode": "text-only" if args.text_only else "multimodal",
+            }
+        },
+    )
     print(f"[rating] Log salvo em: {log_file}")
 
     try:
@@ -331,20 +452,35 @@ def run_mode_tagging(client, args):
 
     sample = images[: args.limit]
     system_prompt = load_prompt("tagging", args.prompt_file)
-    user_prompt = "Lista (amostra) de imagens do darktable:\n" + json.dumps(
-        sample, ensure_ascii=False
-    )
+    vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
+    if vision_errors:
+        print("[tagging] Avisos ao carregar imagens:")
+        for warn in vision_errors:
+            print("  -", warn)
 
-    answer = call_ollama(
-        system_prompt,
-        user_prompt,
+    messages = build_ollama_messages_for_images(system_prompt, sample, vision_images)
+
+    answer = call_ollama_messages(
+        messages,
         model=args.model or OLLAMA_MODEL,
         url=args.ollama_url or OLLAMA_URL,
     )
     print("[tagging] Resposta bruta do modelo:")
     print(answer)
 
-    log_file = save_log("tagging", args.source, sample, answer)
+    log_file = save_log(
+        "tagging",
+        args.source,
+        sample,
+        answer,
+        extra={
+            "vision": {
+                "attached": len(vision_images),
+                "errors": vision_errors,
+                "mode": "text-only" if args.text_only else "multimodal",
+            }
+        },
+    )
     print(f"[tagging] Log salvo em: {log_file}")
 
     try:
@@ -390,20 +526,36 @@ def run_mode_export(client, args):
 
     sample = images[: args.limit]
     system_prompt = load_prompt("export", args.prompt_file)
-    user_prompt = "Lista (amostra) de imagens do darktable:\n" + json.dumps(
-        sample, ensure_ascii=False
-    )
+    vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
+    if vision_errors:
+        print("[export] Avisos ao carregar imagens:")
+        for warn in vision_errors:
+            print("  -", warn)
 
-    answer = call_ollama(
-        system_prompt,
-        user_prompt,
+    messages = build_ollama_messages_for_images(system_prompt, sample, vision_images)
+
+    answer = call_ollama_messages(
+        messages,
         model=args.model or OLLAMA_MODEL,
         url=args.ollama_url or OLLAMA_URL,
     )
     print("[export] Resposta bruta do modelo:")
     print(answer)
 
-    log_file = save_log("export", args.source, sample, answer, extra={"target_dir": args.target_dir})
+    log_file = save_log(
+        "export",
+        args.source,
+        sample,
+        answer,
+        extra={
+            "target_dir": args.target_dir,
+            "vision": {
+                "attached": len(vision_images),
+                "errors": vision_errors,
+                "mode": "text-only" if args.text_only else "multimodal",
+            },
+        },
+    )
     print(f"[export] Log salvo em: {log_file}")
 
     try:

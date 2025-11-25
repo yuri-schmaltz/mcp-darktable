@@ -1,11 +1,8 @@
 Você recebe uma lista de fotos de um mesmo contexto (ex.: um job ou evento).
 
-Cada foto tem:
-- id
-- path
-- filename
-- rating
-- colorlabels
+Cada foto tem metadados (id, path, filename, rating, colorlabels) e, quando disponível, a imagem
+é enviada junto em mensagens multimodais. Use o conteúdo visual (nitidez, expressão, exposição,
+composição) como base para decidir.
 
 Observação: ao usar `set_colorlabel_batch`, a cor indicada é adicionada às existentes. Use
 `"overwrite": true` apenas quando quiser limpar todas as colorlabels antes de aplicar a nova cor.
@@ -20,6 +17,9 @@ Regras sugeridas:
 
 Saída APENAS em JSON, sem comentários adicionais, no formato:
 
-{"ids_para_exportar":[1,2,3,...]}
+{
+  "ids_para_exportar":[1,2,3,...],
+  "notas": {"<id>": "motivo curto (opcional)"}
+}
 
-Se não quiser exportar nenhuma, retorne {"ids_para_exportar": []}.
+Se não quiser exportar nenhuma, retorne {"ids_para_exportar": [], "notas": {}}.
