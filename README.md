@@ -6,7 +6,7 @@ em fluxos de tratamento em lote (rating, tagging, export).
 ## Estrutura
 
 - `server/dt_mcp_server.lua` — servidor MCP (stdin/stdout) usando o darktable como biblioteca.
-- `host/mcp_host_ollama.py` — host que fala com o servidor MCP e com o Ollama.
+- `host/mcp_host_ollama.py` — host que fala com o servidor MCP e com o Ollama (por padrão em `http://localhost:11434`).
 - `host/mcp_host_lmstudio.py` — host que fala com o servidor MCP e com o LM Studio (API OpenAI-like).
 - `config/prompts/*.md` — prompts para rating, tagging e export.
 - `logs/` — logs em JSON de cada execução.
@@ -53,11 +53,11 @@ printf '{"jsonrpc":"2.0","id":"1","method":"initialize","params":{}}\n' | lua se
 
 ## Uso com Ollama
 
-Certifique-se de que o Ollama está rodando e que um modelo foi baixado:
+Certifique-se de que o Ollama está rodando e que um modelo foi baixado (o endereço padrão usado é `http://localhost:11434`):
 
 ```bash
 ollama serve
-ollama pull llama3.1
+ollama pull llama3.1  # ou use --download-model no host
 ```
 
 Depois:
@@ -66,6 +66,14 @@ Depois:
 cd darktable-mcp-batch
 python host/mcp_host_ollama.py --mode rating --source all --dry-run
 ```
+
+Caso ainda não tenha o modelo local, o host pode acionar o download diretamente:
+
+```bash
+python host/mcp_host_ollama.py --download-model llama3.2 --mode rating --source all --dry-run
+```
+
+Você também pode usar o botão **Baixar modelo** na interface GUI para solicitar os downloads mais comuns (por exemplo, `llama3.2`, `phi3`, `mistral`, `gemma2`).
 
 ### Interface interativa (CLI)
 

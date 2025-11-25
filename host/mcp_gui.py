@@ -7,6 +7,7 @@ os hosts mostrando o progresso das atividades.
 """
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import threading
@@ -166,6 +167,10 @@ class MCPGui(QMainWindow):
         list_button.clicked.connect(self.list_models)
         actions_layout.addWidget(list_button)
 
+        download_button = QPushButton("Baixar modelo")
+        download_button.clicked.connect(self.download_model)
+        actions_layout.addWidget(download_button)
+
         run_button = QPushButton("Executar host")
         run_button.clicked.connect(self.run_host)
         actions_layout.addWidget(run_button)
@@ -317,6 +322,43 @@ class MCPGui(QMainWindow):
         resp.raise_for_status()
         data = resp.json()
         return [m.get("name", "") for m in data.get("models", []) if m.get("name")]
+
+    def download_model(self) -> None:
+        def task():
+            host = self._selected_host()
+            if host != "ollama":
+                self._append_log("Download automático disponível apenas para Ollama.")
+                return
+
+            model = self.model_edit.text().strip() or OLLAMA_MODEL
+            url = self.url_edit.text().strip() or OLLAMA_URL
+            statuses = self._pull_ollama_model(model, url)
+            self._append_log(
+                f"Download de '{model}':\n- " + "\n- ".join(statuses)
+            )
+
+        self._run_async("Baixando modelo...", task)
+
+    def _pull_ollama_model(self, model: str, url: str) -> List[str]:
+        base = _base_url(url)
+        resp = requests.post(f"{base}/api/pull", json={"model": model}, stream=True, timeout=5)
+        resp.raise_for_status()
+
+        statuses: List[str] = []
+        for line in resp.iter_lines():
+            if not line:
+                continue
+            try:
+                data = json.loads(line.decode("utf-8"))
+            except Exception:
+                continue
+            status = data.get("status") or data.get("message")
+            if status:
+                statuses.append(status)
+
+        if not statuses:
+            statuses.append("Download iniciado; acompanhe logs do Ollama para progresso.")
+        return statuses
 
     def _list_lmstudio_models(self, url: str) -> List[str]:
         base = _base_url(url)
