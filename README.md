@@ -10,6 +10,7 @@ em fluxos de tratamento em lote (rating, tagging, export).
 - `host/mcp_host_lmstudio.py` — host que fala com o servidor MCP e com o LM Studio (API OpenAI-like).
 - `config/prompts/*.md` — prompts para rating, tagging e export.
 - `logs/` — logs em JSON de cada execução.
+- `host/interactive_cli.py` — interface interativa em terminal que monta e executa os hosts acima.
 
 ## Pré-requisitos
 
@@ -65,6 +66,20 @@ Depois:
 cd darktable-mcp-batch
 python host/mcp_host_ollama.py --mode rating --source all --dry-run
 ```
+
+### Interface interativa (CLI)
+
+Se preferir um passo a passo guiado, use a interface interativa. Ela pergunta pelos
+parâmetros principais (host, modo, fonte, filtros, prompt customizado, etc.) e monta
+o comando final antes de executar:
+
+```bash
+python host/interactive_cli.py
+```
+
+Por padrão o modo é `rating`, o host é `ollama` e o script executa em `--dry-run`
+para evitar mudanças acidentais. A tela de resumo mostra o comando completo e só
+roda após confirmação.
 
 ## Instruções completas de uso
 
