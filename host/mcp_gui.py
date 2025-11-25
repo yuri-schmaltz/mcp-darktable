@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QProgressBar,
+    QSizePolicy,
     QRadioButton,
     QSpinBox,
     QTextEdit,
@@ -100,35 +101,19 @@ class MCPGui(QMainWindow):
         top_layout.setHorizontalSpacing(14)
         top_layout.setVerticalSpacing(10)
 
-        host_label = QLabel("Framework:")
-        host_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.host_group = QButtonGroup(self)
-        self.host_ollama = QRadioButton("Ollama")
-        self.host_ollama.setChecked(True)
-        self.host_lmstudio = QRadioButton("LM Studio")
-        self.host_group.addButton(self.host_ollama)
-        self.host_group.addButton(self.host_lmstudio)
-        host_layout = QHBoxLayout()
-        host_layout.setSpacing(10)
-        host_layout.addWidget(self.host_ollama)
-        host_layout.addWidget(self.host_lmstudio)
-        host_layout.addStretch()
-        top_layout.addWidget(host_label, 0, 0)
-        top_layout.addLayout(host_layout, 0, 1, 1, 3)
-
         mode_label = QLabel("Modo:")
         mode_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["rating", "tagging", "export"])
-        top_layout.addWidget(mode_label, 1, 0)
-        top_layout.addWidget(self.mode_combo, 1, 1)
+        top_layout.addWidget(mode_label, 0, 0)
+        top_layout.addWidget(self.mode_combo, 0, 1)
 
         source_label = QLabel("Fonte:")
         source_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.source_combo = QComboBox()
         self.source_combo.addItems(["all", "path", "tag"])
-        top_layout.addWidget(source_label, 1, 2)
-        top_layout.addWidget(self.source_combo, 1, 3)
+        top_layout.addWidget(source_label, 0, 2)
+        top_layout.addWidget(self.source_combo, 0, 3)
 
         min_label = QLabel("Rating mínimo:")
         min_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -136,8 +121,8 @@ class MCPGui(QMainWindow):
         self.min_rating_spin.setRange(-2, 5)
         self.min_rating_spin.setValue(DEFAULT_MIN_RATING)
         self.min_rating_spin.setFixedWidth(80)
-        top_layout.addWidget(min_label, 2, 0)
-        top_layout.addWidget(self.min_rating_spin, 2, 1)
+        top_layout.addWidget(min_label, 1, 0)
+        top_layout.addWidget(self.min_rating_spin, 1, 1)
 
         limit_label = QLabel("Limite:")
         limit_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -145,8 +130,8 @@ class MCPGui(QMainWindow):
         self.limit_spin.setRange(1, 2000)
         self.limit_spin.setValue(DEFAULT_LIMIT)
         self.limit_spin.setFixedWidth(100)
-        top_layout.addWidget(limit_label, 2, 2)
-        top_layout.addWidget(self.limit_spin, 2, 3)
+        top_layout.addWidget(limit_label, 1, 2)
+        top_layout.addWidget(self.limit_spin, 1, 3)
 
         top_layout.setColumnStretch(1, 1)
         top_layout.setColumnStretch(3, 1)
@@ -196,46 +181,73 @@ class MCPGui(QMainWindow):
         llm_layout.setHorizontalSpacing(14)
         llm_layout.setVerticalSpacing(10)
 
+        framework_label = QLabel("Framework:")
+        framework_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.host_group = QButtonGroup(self)
+        self.host_ollama = QRadioButton("Ollama")
+        self.host_ollama.setChecked(True)
+        self.host_lmstudio = QRadioButton("LM Studio")
+        self.host_group.addButton(self.host_ollama)
+        self.host_group.addButton(self.host_lmstudio)
+        host_layout = QHBoxLayout()
+        host_layout.setSpacing(10)
+        host_layout.addWidget(self.host_ollama)
+        host_layout.addWidget(self.host_lmstudio)
+        host_layout.addStretch()
+        llm_layout.addWidget(framework_label, 0, 0)
+        llm_layout.addLayout(host_layout, 0, 1)
+
         self.model_edit = QLineEdit()
         self.url_edit = QLineEdit()
 
-        self._add_form_row(llm_layout, 0, "Modelo:", self.model_edit)
-        self._add_form_row(llm_layout, 1, "URL do servidor:", self.url_edit)
-
-        actions_layout = QHBoxLayout()
-        actions_layout.setSpacing(10)
+        url_row = self._add_form_row(llm_layout, 1, "URL do servidor:", self.url_edit)
         check_button = QPushButton("Verificar conectividade")
         check_button.clicked.connect(self.check_connectivity)
-        actions_layout.addWidget(check_button)
+        url_row.addWidget(check_button)
 
+        model_row = self._add_form_row(llm_layout, 2, "Modelo:", self.model_edit)
         list_button = QPushButton("Listar modelos")
         list_button.clicked.connect(self.list_models)
-        actions_layout.addWidget(list_button)
+        model_row.addWidget(list_button)
 
         download_button = QPushButton("Baixar modelo")
         download_button.clicked.connect(self.download_model)
-        actions_layout.addWidget(download_button)
+        model_row.addWidget(download_button)
+        model_row.addStretch()
 
-        run_button = QPushButton("Executar host")
-        run_button.clicked.connect(self.run_host)
-        actions_layout.addWidget(run_button)
-        actions_layout.addStretch()
-        llm_layout.addLayout(actions_layout, 2, 0, 1, 2)
+        llm_layout.setColumnStretch(1, 1)
 
         main_layout.addWidget(llm_group)
 
-        status_layout = QHBoxLayout()
-        status_layout.setSpacing(10)
+        host_group = QGroupBox("Host")
+        host_layout = QVBoxLayout(host_group)
+        host_layout.setContentsMargins(10, 12, 10, 12)
+        host_layout.setSpacing(10)
+
+        run_button = QPushButton("Executar host")
+        run_button.setMinimumHeight(46)
+        run_button.setStyleSheet("font-size: 16px; font-weight: 600;")
+        run_button.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        run_button.clicked.connect(self.run_host)
+        host_layout.addWidget(run_button)
+
         self.status_label = QLabel("Pronto para configurar a execução.")
         self.status_label.setWordWrap(True)
-        status_layout.addWidget(self.status_label, alignment=Qt.AlignmentFlag.AlignLeft)
+        host_layout.addWidget(self.status_label)
+
         self.progress = QProgressBar()
-        self.progress.setFixedWidth(180)
         self.progress.setRange(0, 1)
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
-        status_layout.addWidget(self.progress)
-        main_layout.addLayout(status_layout)
+        self.progress.setMinimumHeight(18)
+        self.progress.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        host_layout.addWidget(self.progress)
+
+        main_layout.addWidget(host_group)
 
         log_group = QGroupBox("Log")
         log_layout = QVBoxLayout(log_group)
