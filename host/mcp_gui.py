@@ -78,9 +78,10 @@ class MCPGui(QMainWindow):
             QWidget { font-size: 14px; }
             QGroupBox { font-weight: 600; }
             QLabel { color: #2c3e50; }
-            QPushButton { padding: 6px 12px; }
-            QLineEdit, QComboBox, QTextEdit { padding: 6px; }
-            QTextEdit { font-family: "JetBrains Mono", "Fira Code", monospace; }
+            QPushButton { padding: 6px 12px; min-height: 34px; }
+            QLineEdit, QComboBox, QSpinBox { padding: 6px; min-height: 32px; }
+            QTextEdit { padding: 8px; min-height: 140px; font-family: "JetBrains Mono", "Fira Code", monospace; }
+            QCheckBox, QRadioButton { min-height: 28px; }
             """
         )
 
