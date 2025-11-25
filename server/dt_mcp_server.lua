@@ -147,6 +147,14 @@ end
 --------------------------------------------------
 local function tool_list_collection(args)
   args = args or {}
+  if args.min_rating ~= nil and type(args.min_rating) ~= "number" then
+    return mcp_error("min_rating deve ser numérico", "invalid_min_rating", "min_rating")
+  end
+
+  if args.only_raw ~= nil and type(args.only_raw) ~= "boolean" then
+    return mcp_error("only_raw deve ser booleano", "invalid_only_raw", "only_raw")
+  end
+
   local min_rating = args.min_rating or -2
   local only_raw   = args.only_raw or false
 
@@ -172,6 +180,18 @@ end
 --------------------------------------------------
 local function tool_list_by_path(args)
   args = args or {}
+  if args.path_contains ~= nil and type(args.path_contains) ~= "string" then
+    return mcp_error("path_contains deve ser string", "invalid_path_contains", "path_contains")
+  end
+
+  if args.min_rating ~= nil and type(args.min_rating) ~= "number" then
+    return mcp_error("min_rating deve ser numérico", "invalid_min_rating", "min_rating")
+  end
+
+  if args.only_raw ~= nil and type(args.only_raw) ~= "boolean" then
+    return mcp_error("only_raw deve ser booleano", "invalid_only_raw", "only_raw")
+  end
+
   local path_contains = args.path_contains or ""
   local min_rating    = args.min_rating or -2
   local only_raw      = args.only_raw or false
@@ -201,16 +221,21 @@ end
 --------------------------------------------------
 local function tool_list_by_tag(args)
   args = args or {}
+  if type(args.tag) ~= "string" or args.tag == "" then
+    return mcp_error("tag é obrigatória e deve ser string", "invalid_tag", "tag")
+  end
+
+  if args.min_rating ~= nil and type(args.min_rating) ~= "number" then
+    return mcp_error("min_rating deve ser numérico", "invalid_min_rating", "min_rating")
+  end
+
+  if args.only_raw ~= nil and type(args.only_raw) ~= "boolean" then
+    return mcp_error("only_raw deve ser booleano", "invalid_only_raw", "only_raw")
+  end
+
   local tag_name   = args.tag
   local min_rating = args.min_rating or -2
   local only_raw   = args.only_raw or false
-
-  if not tag_name then
-    return {
-      content = { { type = "text", text = "tag é obrigatória" } },
-      isError = true
-    }
-  end
 
   local tag = dt.tags.create(tag_name)
   local images = dt.tags.get_images(tag)
@@ -240,6 +265,22 @@ local function tool_apply_batch_edits(args)
       content = { { type = "text", text = "Parâmetro 'edits' (array) é obrigatório" } },
       isError = true
     }
+  end
+
+  for idx, e in ipairs(args.edits) do
+    if type(e) ~= "table" or type(e.id) ~= "number" then
+      return mcp_error("Cada edição precisa de 'id' numérico", "invalid_edit", "edits", { index = idx })
+    end
+
+    if e.rating ~= nil then
+      if type(e.rating) ~= "number" then
+        return mcp_error("rating deve ser numérico", "invalid_rating", "edits", { index = idx })
+      end
+
+      if e.rating < -1 or e.rating > 5 then
+        return mcp_error("rating deve estar entre -1 e 5", "invalid_rating", "edits", { index = idx })
+      end
+    end
   end
 
   local updated = 0
@@ -330,11 +371,14 @@ end
 -- args: { tag: string, ids: [ number ] }
 --------------------------------------------------
 local function tool_tag_batch(args)
-  if not args or not args.tag or type(args.ids) ~= "table" then
-    return {
-      content = { { type = "text", text = "tag e ids são obrigatórios" } },
-      isError = true
-    }
+  if not args or type(args.tag) ~= "string" or args.tag == "" or type(args.ids) ~= "table" then
+    return mcp_error("tag (string) e ids (array) são obrigatórios", "invalid_arguments", "tag")
+  end
+
+  for idx, id in ipairs(args.ids) do
+    if type(id) ~= "number" then
+      return mcp_error("ids deve conter apenas números", "invalid_id", "ids", { index = idx })
+    end
   end
 
   local tag = dt.tags.create(args.tag)
@@ -428,6 +472,18 @@ local function tool_export_collection(args)
       content = { { type = "text", text = "darktable-cli não encontrado no PATH" } },
       isError = true
     }
+  end
+
+  if args.ids ~= nil then
+    if type(args.ids) ~= "table" then
+      return mcp_error("ids deve ser uma lista de números", "invalid_ids", "ids")
+    end
+
+    for idx, id in ipairs(args.ids) do
+      if type(id) ~= "number" then
+        return mcp_error("ids deve conter apenas números", "invalid_ids", "ids", { index = idx })
+      end
+    end
   end
 
   -- garantir que target_dir existe
