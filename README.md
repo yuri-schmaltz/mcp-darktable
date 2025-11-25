@@ -124,7 +124,8 @@ roda após confirmação.
 8. **Rodando para cada modo**
    - **Rating**: remove ou confirma a seleção de imagens. Ex.: `python host/mcp_host_ollama.py --mode rating --limit 150`
    - **Tagging**: adiciona tags sugeridas pelo modelo. Ex.: `python host/mcp_host_lmstudio.py --mode tagging --tag viagem --dry-run`
-   - **Export**: exige `--target-dir` (apenas letras/números) e valida caminho antes de exportar. Ex.:
+  - **Export**: exige `--target-dir` sem `..`, redirecionamentos ou caracteres de shell e aceita apenas
+    formatos `jpg`, `jpeg`, `tif`, `tiff`, `png` e `webp`. Ex.:
      ```bash
      python host/mcp_host_ollama.py --mode export --source path --path-contains cliente-x --target-dir out_job_x
      ```
@@ -170,20 +171,11 @@ O log em `logs/batch-*.json` inclui a resposta bruta do modelo e metadados da ch
 
 - `set_colorlabel_batch` ativa a cor solicitada em cada imagem, sem limpar marcas anteriores. Caso precise
   sobrescrever cores existentes, faça um passo de limpeza antes de aplicar novas cores.
-- `export_collection` valida o diretório alvo e o formato (somente letras/números) e exige `darktable-cli`
-  no `PATH`. A função registra no stderr cada export que falhar e retorna um resumo com eventuais erros em
-  JSON para ajudar na depuração.
-- Em caso de falha, os hosts exibem a lista de erros individuais (id, exit code, comando, stderr) e anexam o
-  resultado completo no log gerado em `logs/`.
-  Exemplo de saída quando `darktable-cli` não está no `PATH`:
-
-  ```text
-  [export] Resultado export_collection: Exportadas 0 imagens para /tmp/out (1 falharam)
-  [export] Falhas detalhadas:
-    id=42 exit=127 reason=exit cmd=darktable-cli "/tmp/in/arquivo.nef" "/tmp/out/arquivo.jpg"
-      stderr: /bin/sh: 1: darktable-cli: not found
-  [export] Resultado de export salvo em log adicional: logs/batch-export-20240101-120000-export-result.json
-  ```
+- `export_collection` valida o diretório alvo e o formato (somente letras/números), rejeitando `..`,
+  redirecionamentos (`>`, `<`, `|`) ou caracteres de shell como `;`, `&`, `` ` `` e `$()`.
+  Formatos aceitos: `jpg`, `jpeg`, `tif`, `tiff`, `png` e `webp`. A função exige `darktable-cli` no `PATH`,
+  registra no stderr cada export que falhar e retorna um resumo com eventuais erros em JSON para ajudar na
+  depuração.
 
 ## Avaliação rápida da base
 
