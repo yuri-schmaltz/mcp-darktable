@@ -285,10 +285,6 @@ class MCPGui(QMainWindow):
         list_button.clicked.connect(self.list_models)
         model_row.addWidget(list_button)
 
-        download_button = QPushButton("Baixar modelo")
-        self._standardize_button(download_button)
-        download_button.clicked.connect(self.download_model)
-        model_row.addWidget(download_button)
         model_row.addStretch()
 
         main_layout.addWidget(llm_group)
