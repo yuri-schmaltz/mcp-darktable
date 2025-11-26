@@ -110,6 +110,28 @@ Por padrão o modo é `rating`, o host é `ollama` e o script executa em `--dry-
 para evitar mudanças acidentais. A tela de resumo mostra o comando completo e só
 roda após confirmação.
 
+### Parâmetros principais (GUI)
+
+A interface gráfica exibe um painel de "Parâmetros principais" que corresponde
+às opções mais usadas no fluxo de rating/tagging/export. Cada campo da captura
+abaixo corresponde a um parâmetro aceito pelos hosts de linha de comando:
+
+- **Modo** (`rating`, `tagging`, `export`, `tratamento`): define a ação principal.
+  Em `rating`, o modelo avalia e atribui ratings; em `tagging`, sugere e aplica
+  tags; em `export`, executa o fluxo de exportação (exigindo `--target-dir`);
+  e em `tratamento` (em desenvolvimento) aplicará ajustes automáticos de imagem
+  sem intervenção manual.
+- **Fonte** (`all`, `path`, `tag`, `collection`): escolhe a origem das fotos.
+  `all` processa todo o catálogo; `path` filtra por trecho de caminho
+  (`--path-contains`); `tag` limita a imagens que já possuam uma tag específica
+  (`--tag`); e `collection` permite navegar e selecionar as coleções já
+  disponíveis no darktable para enviar ao fluxo de tratamento.
+- **Rating mínimo**: limite inferior para incluir imagens na amostra enviada ao
+  modelo. O valor `-2` corresponde a rejeitados; aumente para ignorar fotos com
+  avaliações muito baixas e reduzir custos de inferência.
+- **Limite**: número máximo de imagens processadas na execução. Útil para
+  amostrar subconjuntos antes de aplicar em lotes maiores.
+
 ## Instruções completas de uso
 
 1. **Configure o caminho do darktable**
