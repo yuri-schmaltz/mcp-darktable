@@ -304,13 +304,7 @@ class MCPGui(QMainWindow):
         self.status_label.setWordWrap(True)
         self.status_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
-        self.progress = QProgressBar()
-        self.progress.setRange(0, 1)
-        self.progress.setValue(0)
-        self.progress.setTextVisible(False)
-
         status_layout.addWidget(self.status_label)
-        status_layout.addWidget(self.progress)
 
         main_layout.addLayout(status_layout)
 
@@ -324,11 +318,18 @@ class MCPGui(QMainWindow):
         self.log_text.setReadOnly(True)
         self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
 
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 1)
+        self.progress.setValue(0)
+        self.progress.setTextVisible(False)
+        self.progress.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
         clear_log = QPushButton("Limpar log")
         clear_log.setToolTip("Remove o conteúdo exibido acima")
         clear_log.clicked.connect(self.log_text.clear)
 
         log_layout.addWidget(self.log_text)
+        log_layout.addWidget(self.progress)
         log_layout.addWidget(clear_log, alignment=Qt.AlignmentFlag.AlignRight)
 
         main_layout.addWidget(log_group, stretch=1)
