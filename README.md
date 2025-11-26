@@ -96,6 +96,8 @@ python host/mcp_host_ollama.py --download-model llama3.2 --mode rating --source 
 
 Você também pode usar o botão **Baixar modelo** na interface GUI para solicitar os downloads mais comuns (por exemplo, `llama3.2`, `phi3`, `mistral`, `gemma2`).
 
+Para um guia visual da tela de configuração de LLM (framework, URL, modelo e botões de ação), consulte `docs/llm-gui-explicacao.md`.
+
 ### Interface interativa (CLI)
 
 Se preferir um passo a passo guiado, use a interface interativa. Ela pergunta pelos
