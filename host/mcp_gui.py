@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QGroupBox,
     QHBoxLayout,
+    QFormLayout,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -173,153 +174,177 @@ class MCPGui(QMainWindow):
 
         # ---------------------- Grupo: Parâmetros principais --------------------
         top_group = QGroupBox("Parâmetros principais")
-        top_layout = QGridLayout(top_group)
-        top_layout.setContentsMargins(16, 14, 16, 18)
-        top_layout.setHorizontalSpacing(14)
-        top_layout.setVerticalSpacing(14)
+        top_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-        # Linha: Modo / Fonte / Rating mínimo / Limite
-        mode_label = QLabel("Modo:")
-        mode_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        top_layout = QFormLayout(top_group)
+        top_layout.setContentsMargins(16, 14, 16, 18)
+        top_layout.setHorizontalSpacing(16)
+        top_layout.setVerticalSpacing(8)
+        top_layout.setLabelAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["rating", "tagging", "export", "tratamento"])
         self.mode_combo.setToolTip(
             "Define o tipo de operação: atribuir notas, sugerir tags, exportar ou tratamento"
         )
 
-        source_label = QLabel("Fonte:")
-        source_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.source_combo = QComboBox()
         self.source_combo.addItems(["all", "path", "tag", "collection"])
         self.source_combo.setToolTip(
             "Escolhe de onde as imagens serão obtidas: todas, por caminho, por tag ou coleção"
         )
 
-        min_label = QLabel("Rating mínimo:")
-        min_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.min_rating_spin = QSpinBox()
         self.min_rating_spin.setRange(-2, 5)
         self.min_rating_spin.setValue(DEFAULT_MIN_RATING)
-        self.min_rating_spin.setFixedWidth(80)
         self.min_rating_spin.setToolTip(
             "Nota mínima das imagens que serão consideradas (de -2 a 5)"
         )
 
-        limit_label = QLabel("Limite:")
-        limit_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.limit_spin = QSpinBox()
         self.limit_spin.setRange(1, 2000)
         self.limit_spin.setValue(DEFAULT_LIMIT)
-        self.limit_spin.setFixedWidth(100)
         self.limit_spin.setToolTip(
             "Quantidade máxima de imagens processadas nesta execução"
         )
 
-        top_layout.addWidget(mode_label, 0, 0)
-        top_layout.addWidget(self.mode_combo, 0, 1)
-        top_layout.addWidget(source_label, 0, 2)
-        top_layout.addWidget(self.source_combo, 0, 3)
-        top_layout.addWidget(min_label, 0, 4)
-        top_layout.addWidget(self.min_rating_spin, 0, 5)
-        top_layout.addWidget(limit_label, 0, 6)
-        top_layout.addWidget(self.limit_spin, 0, 7)
-
-        top_layout.setColumnStretch(1, 1)
-        top_layout.setColumnStretch(3, 1)
+        top_layout.addRow("Modo:", self.mode_combo)
+        top_layout.addRow("Fonte:", self.source_combo)
+        top_layout.addRow("Rating mínimo:", self.min_rating_spin)
+        top_layout.addRow("Limite:", self.limit_spin)
 
         main_layout.addWidget(top_group)
 
         # -------------------------- Grupo: Filtros e opções ---------------------
         filter_group = QGroupBox("Filtros e opções")
-        filter_layout = QGridLayout(filter_group)
-        filter_layout.setContentsMargins(16, 16, 16, 18)
-        filter_layout.setHorizontalSpacing(14)
-        filter_layout.setVerticalSpacing(16)
+        filter_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-        # col 0 = label, col 1 = campo (expansível), col 2 = botão
-        filter_layout.setColumnStretch(1, 1)
-        filter_layout.setColumnMinimumWidth(0, 120)
-        filter_layout.setColumnMinimumWidth(2, 110)
+        filter_layout = QFormLayout(filter_group)
+        filter_layout.setContentsMargins(16, 16, 16, 18)
+        filter_layout.setHorizontalSpacing(16)
+        filter_layout.setVerticalSpacing(8)
+        filter_layout.setLabelAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
 
         self.path_contains_edit = QLineEdit()
         self.tag_edit = QLineEdit()
         self.collection_edit = QLineEdit()
         self.prompt_edit = QLineEdit()
         self.target_edit = QLineEdit()
+
         self.prompt_edit.setToolTip(
             "Arquivo Markdown opcional com instruções adicionais para o modelo"
         )
         self.target_edit.setToolTip("Diretório onde as exportações serão salvas")
 
-        # Path
-        self._add_form_row(filter_layout, 0, "Path contains:", self.path_contains_edit)
+        for w in (
+            self.path_contains_edit,
+            self.tag_edit,
+            self.collection_edit,
+            self.prompt_edit,
+            self.target_edit,
+        ):
+            self._style_form_field(w)
 
-        # Tag
-        self._add_form_row(filter_layout, 1, "Tag:", self.tag_edit)
+        # Linha única com Path / Tag / Coleção
+        ptc_widget = QWidget()
+        ptc_layout = QHBoxLayout(ptc_widget)
+        ptc_layout.setContentsMargins(0, 0, 0, 0)
+        ptc_layout.setSpacing(10)
 
-        # Collection
-        self._add_form_row(filter_layout, 2, "Coleção:", self.collection_edit)
+        lbl_path = QLabel("Path:")
+        lbl_tag = QLabel("Tag:")
+        lbl_col = QLabel("Coleção:")
 
-        # Prompt custom (+ botões Selecionar / Gerar modelo)
-        self._add_form_row(filter_layout, 3, "Prompt custom:", self.prompt_edit)
-        prompt_buttons = QHBoxLayout()
-        prompt_buttons.setSpacing(10)
+        ptc_layout.addWidget(lbl_path)
+        ptc_layout.addWidget(self.path_contains_edit)
+        ptc_layout.addSpacing(6)
+        ptc_layout.addWidget(lbl_tag)
+        ptc_layout.addWidget(self.tag_edit)
+        ptc_layout.addSpacing(6)
+        ptc_layout.addWidget(lbl_col)
+        ptc_layout.addWidget(self.collection_edit)
+        ptc_layout.addStretch()
+
+        filter_layout.addRow("Filtros:", ptc_widget)
+
+        # Prompt custom + botões
+        prompt_row_widget = QWidget()
+        prompt_row_layout = QHBoxLayout(prompt_row_widget)
+        prompt_row_layout.setContentsMargins(0, 0, 0, 0)
+        prompt_row_layout.setSpacing(8)
+        prompt_row_layout.addWidget(self.prompt_edit)
 
         self.prompt_button = QPushButton("Selecionar")
         self._standardize_button(self.prompt_button)
         self.prompt_button.clicked.connect(self._choose_prompt_file)
-        prompt_buttons.addWidget(self.prompt_button)
+        prompt_row_layout.addWidget(self.prompt_button)
 
         self.prompt_generate_button = QPushButton("Gerar modelo")
         self._standardize_button(self.prompt_generate_button)
         self.prompt_generate_button.clicked.connect(self._generate_prompt_template)
-        prompt_buttons.addWidget(self.prompt_generate_button)
+        prompt_row_layout.addWidget(self.prompt_generate_button)
 
-        prompt_buttons.addStretch()
-        filter_layout.addLayout(prompt_buttons, 3, 2)
+        prompt_row_layout.addStretch()
+        filter_layout.addRow("Prompt custom:", prompt_row_widget)
 
-        # Dir export (+ botão Selecionar)
-        self._add_form_row(filter_layout, 4, "Dir export:", self.target_edit)
+        # Dir export + botão
+        target_row_widget = QWidget()
+        target_row_layout = QHBoxLayout(target_row_widget)
+        target_row_layout.setContentsMargins(0, 0, 0, 0)
+        target_row_layout.setSpacing(8)
+        target_row_layout.addWidget(self.target_edit)
+
         self.target_button = QPushButton("Selecionar")
         self._standardize_button(self.target_button)
         self.target_button.clicked.connect(self._choose_target_dir)
-        self.target_button.setToolTip("Seleciona a pasta onde os arquivos exportados serão gravados")
-        filter_layout.addWidget(self.target_button, 4, 2)
+        self.target_button.setToolTip(
+            "Seleciona a pasta onde os arquivos exportados serão gravados"
+        )
+        target_row_layout.addWidget(self.target_button)
+        target_row_layout.addStretch()
 
-        # Checkboxes
-        flags_layout = QHBoxLayout()
-        flags_layout.setContentsMargins(0, 10, 0, 6)
+        filter_layout.addRow("Dir export:", target_row_widget)
+
+        # Checkboxes (Apenas RAW / Dry-run)
+        flags_widget = QWidget()
+        flags_layout = QHBoxLayout(flags_widget)
+        flags_layout.setContentsMargins(0, 0, 0, 0)
         flags_layout.setSpacing(18)
 
         self.only_raw_check = QCheckBox("Apenas RAW")
         self.dry_run_check = QCheckBox("Dry-run")
         self.dry_run_check.setChecked(True)
-        self.only_raw_check.setToolTip("Processa somente arquivos RAW (ignora JPEGs e derivados)")
+        self.only_raw_check.setToolTip(
+            "Processa somente arquivos RAW (ignora JPEGs e derivados)"
+        )
         self.dry_run_check.setToolTip(
             "Simula a execução sem escrever arquivos ou alterar metadados"
         )
 
-        flags_layout.addStretch()
         flags_layout.addWidget(self.only_raw_check)
         flags_layout.addWidget(self.dry_run_check)
         flags_layout.addStretch()
 
-        # ocupa as três colunas (label + campo + botão)
-        filter_layout.addLayout(flags_layout, 5, 0, 1, 3)
+        filter_layout.addRow("", flags_widget)
 
         main_layout.addWidget(filter_group)
 
         # ------------------------------- Grupo LLM ------------------------------
         llm_group = QGroupBox("LLM")
-        llm_layout = QGridLayout(llm_group)
-        llm_layout.setContentsMargins(16, 16, 16, 18)
-        llm_layout.setHorizontalSpacing(14)
-        llm_layout.setVerticalSpacing(16)
-        llm_layout.setColumnStretch(1, 1)
-        llm_layout.setColumnStretch(3, 1)
+        llm_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-        framework_label = QLabel("Framework:")
-        framework_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        llm_layout = QFormLayout(llm_group)
+        llm_layout.setContentsMargins(16, 16, 16, 18)
+        llm_layout.setHorizontalSpacing(16)
+        llm_layout.setVerticalSpacing(8)
+        llm_layout.setLabelAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+
         self.host_group = QButtonGroup(self)
         self.host_ollama = QRadioButton("Ollama")
         self.host_ollama.setChecked(True)
@@ -327,39 +352,49 @@ class MCPGui(QMainWindow):
         self.host_group.addButton(self.host_ollama)
         self.host_group.addButton(self.host_lmstudio)
         self.host_ollama.setToolTip("Usa um servidor Ollama para executar o modelo")
-        self.host_lmstudio.setToolTip("Usa um servidor LM Studio para executar o modelo")
-        host_layout = QHBoxLayout()
+        self.host_lmstudio.setToolTip(
+            "Usa um servidor LM Studio para executar o modelo"
+        )
+
+        host_widget = QWidget()
+        host_layout = QHBoxLayout(host_widget)
+        host_layout.setContentsMargins(0, 0, 0, 0)
         host_layout.setSpacing(14)
         host_layout.addWidget(self.host_ollama)
         host_layout.addWidget(self.host_lmstudio)
         host_layout.addStretch()
-        llm_layout.addWidget(framework_label, 0, 0)
-        llm_layout.addLayout(host_layout, 0, 1)
+
+        llm_layout.addRow("Framework:", host_widget)
 
         self.model_edit = QLineEdit()
         self.url_edit = QLineEdit()
         self.url_edit.setToolTip("URL base do servidor LLM escolhido")
         self.model_edit.setToolTip("Nome do modelo carregado no servidor selecionado")
 
-        url_label = QLabel("URL do servidor:")
-        url_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        url_label.setMinimumWidth(120)
         self._style_form_field(self.url_edit)
-
-        model_label = QLabel("Modelo:")
-        model_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        model_label.setMinimumWidth(120)
         self._style_form_field(self.model_edit)
 
-        llm_layout.addWidget(url_label, 1, 0)
-        llm_layout.addWidget(self.url_edit, 1, 1)
-        llm_layout.addWidget(model_label, 1, 2)
-        llm_layout.addWidget(self.model_edit, 1, 3)
+        url_model_widget = QWidget()
+        url_model_layout = QHBoxLayout(url_model_widget)
+        url_model_layout.setContentsMargins(0, 0, 0, 0)
+        url_model_layout.setSpacing(10)
 
-        actions_layout = QHBoxLayout()
+        lbl_url = QLabel("URL:")
+        lbl_model = QLabel("Modelo:")
+
+        url_model_layout.addWidget(lbl_url)
+        url_model_layout.addWidget(self.url_edit)
+        url_model_layout.addSpacing(8)
+        url_model_layout.addWidget(lbl_model)
+        url_model_layout.addWidget(self.model_edit)
+        url_model_layout.addStretch()
+
+        llm_layout.addRow("Servidor:", url_model_widget)
+
+        actions_widget = QWidget()
+        actions_layout = QHBoxLayout(actions_widget)
         actions_layout.setContentsMargins(0, 6, 0, 0)
         actions_layout.setSpacing(10)
-        actions_layout.addStretch()
 
         list_button = QPushButton()
         list_button.setIcon(
@@ -368,7 +403,6 @@ class MCPGui(QMainWindow):
         list_button.setToolTip("Listar modelos")
         list_button.setFixedSize(44, 34)
         list_button.clicked.connect(self.list_models)
-        actions_layout.addWidget(list_button)
 
         check_button = QPushButton()
         check_button.setIcon(
@@ -377,14 +411,19 @@ class MCPGui(QMainWindow):
         check_button.setToolTip("Verificar conectividade")
         check_button.setFixedSize(44, 34)
         check_button.clicked.connect(self.check_connectivity)
+
+        actions_layout.addStretch()
+        actions_layout.addWidget(list_button)
         actions_layout.addWidget(check_button)
 
-        llm_layout.addLayout(actions_layout, 2, 0, 1, 4)
+        llm_layout.addRow("", actions_widget)
 
         main_layout.addWidget(llm_group)
 
         # ------------------------------------ Log -------------------------------
         log_group = QGroupBox("Log")
+        log_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
         log_layout = QVBoxLayout(log_group)
         log_layout.setContentsMargins(16, 16, 16, 18)
         log_layout.setSpacing(14)
@@ -392,8 +431,9 @@ class MCPGui(QMainWindow):
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
-        self.log_text.setFixedHeight(90)
-        self.log_text.setToolTip("Saída detalhada das ações executadas pelo host")
+        self.log_text.setMinimumHeight(120)
+        self.log_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.log_text.setToolTip("Logs e progresso serão exibidos aqui...")
 
         clear_log = QPushButton("Limpar log")
         self._standardize_button(clear_log)
@@ -405,6 +445,7 @@ class MCPGui(QMainWindow):
 
         main_layout.addWidget(log_group, stretch=1)
 
+        # ----------------------------- Botão principal --------------------------
         self.run_button = QPushButton("Executar host")
         self._standardize_button(self.run_button)
         self.run_button.setToolTip("Inicia o host com os parâmetros configurados")
@@ -419,6 +460,7 @@ class MCPGui(QMainWindow):
         main_layout.addLayout(run_row)
 
         self._build_status_bar()
+
 
     def _build_menu_bar(self) -> None:
         menu_bar = self.menuBar()
