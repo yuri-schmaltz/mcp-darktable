@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 import requests
 
 from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -37,6 +38,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSpinBox,
     QStyle,
+    QStatusBar,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -72,6 +74,7 @@ class MCPGui(QMainWindow):
         self.error_signal.connect(self._show_error)
 
         self._apply_global_style()
+        self._build_menu_bar()
         self._build_layout()
         self._apply_defaults()
         self._connect_dynamic_behaviors()
@@ -365,35 +368,49 @@ class MCPGui(QMainWindow):
 
         main_layout.addWidget(log_group, stretch=1)
 
-        progress_layout = QVBoxLayout()
-        progress_layout.setContentsMargins(0, 10, 0, 0)
-        progress_layout.setSpacing(8)
+        self.run_button = QPushButton("Executar host")
+        self._standardize_button(self.run_button)
+        self.run_button.setToolTip("Inicia o host com os parâmetros configurados")
+        self.run_button.clicked.connect(self.run_host)
+
+        run_row = QHBoxLayout()
+        run_row.setContentsMargins(0, 8, 0, 0)
+        run_row.addStretch()
+        run_row.addWidget(self.run_button)
+
+        main_layout.addLayout(run_row)
+
+        self._build_status_bar()
+
+    def _build_menu_bar(self) -> None:
+        menu_bar = self.menuBar()
+
+        file_menu = menu_bar.addMenu("Arquivo")
+
+        quit_action = QAction(self.style().standardIcon(QStyle.SP_TitleBarCloseButton), "Sair", self)
+        quit_action.setShortcut("Ctrl+Q")
+        quit_action.triggered.connect(self.close)
+        file_menu.addAction(quit_action)
+
+    def _build_status_bar(self) -> None:
+        status_bar = QStatusBar()
+        status_bar.setSizeGripEnabled(False)
 
         self.status_label = QLabel("Pronto para configurar a execução.")
-        self.status_label.setWordWrap(True)
+        self.status_label.setMinimumWidth(260)
         self.status_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         self.progress = QProgressBar()
         self.progress.setRange(0, 1)
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
-        self.progress.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.progress.setFixedHeight(16)
+        self.progress.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        self.progress.setFixedWidth(200)
 
-        self.run_button = QPushButton("Executar host")
-        self._standardize_button(self.run_button)
-        self.run_button.setToolTip("Inicia o host com os parâmetros configurados")
-        self.run_button.clicked.connect(self.run_host)
-
-        progress_row = QHBoxLayout()
-        progress_row.setSpacing(12)
-        progress_row.addWidget(self.progress)
-        progress_row.addStretch()
-        progress_row.addWidget(self.run_button)
-
-        progress_layout.addWidget(self.status_label)
-        progress_layout.addLayout(progress_row)
-
-        main_layout.addLayout(progress_layout)
+        status_bar.addWidget(self.status_label, 1)
+        status_bar.addPermanentWidget(self.progress)
+        self.setStatusBar(status_bar)
 
     def _style_form_field(self, widget: QLineEdit) -> None:
         widget.setMinimumWidth(260)
