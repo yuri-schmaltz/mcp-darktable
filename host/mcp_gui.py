@@ -156,11 +156,17 @@ class MCPGui(QMainWindow):
         mode_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["rating", "tagging", "export", "tratamento"])
+        self.mode_combo.setToolTip(
+            "Define o tipo de operação: atribuir notas, sugerir tags, exportar ou tratamento"
+        )
 
         source_label = QLabel("Fonte:")
         source_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.source_combo = QComboBox()
         self.source_combo.addItems(["all", "path", "tag", "collection"])
+        self.source_combo.setToolTip(
+            "Escolhe de onde as imagens serão obtidas: todas, por caminho, por tag ou coleção"
+        )
 
         min_label = QLabel("Rating mínimo:")
         min_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -168,6 +174,9 @@ class MCPGui(QMainWindow):
         self.min_rating_spin.setRange(-2, 5)
         self.min_rating_spin.setValue(DEFAULT_MIN_RATING)
         self.min_rating_spin.setFixedWidth(80)
+        self.min_rating_spin.setToolTip(
+            "Nota mínima das imagens que serão consideradas (de -2 a 5)"
+        )
 
         limit_label = QLabel("Limite:")
         limit_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -175,6 +184,9 @@ class MCPGui(QMainWindow):
         self.limit_spin.setRange(1, 2000)
         self.limit_spin.setValue(DEFAULT_LIMIT)
         self.limit_spin.setFixedWidth(100)
+        self.limit_spin.setToolTip(
+            "Quantidade máxima de imagens processadas nesta execução"
+        )
 
         top_layout.addWidget(mode_label, 0, 0)
         top_layout.addWidget(self.mode_combo, 0, 1)
@@ -207,6 +219,10 @@ class MCPGui(QMainWindow):
         self.collection_edit = QLineEdit()
         self.prompt_edit = QLineEdit()
         self.target_edit = QLineEdit()
+        self.prompt_edit.setToolTip(
+            "Arquivo Markdown opcional com instruções adicionais para o modelo"
+        )
+        self.target_edit.setToolTip("Diretório onde as exportações serão salvas")
 
         # Path
         self._add_form_row(filter_layout, 0, "Path contains:", self.path_contains_edit)
@@ -240,6 +256,7 @@ class MCPGui(QMainWindow):
         self.target_button = QPushButton("Selecionar")
         self._standardize_button(self.target_button)
         self.target_button.clicked.connect(self._choose_target_dir)
+        self.target_button.setToolTip("Seleciona a pasta onde os arquivos exportados serão gravados")
         filter_layout.addWidget(self.target_button, 4, 2)
 
         # Checkboxes
@@ -249,6 +266,10 @@ class MCPGui(QMainWindow):
         self.only_raw_check = QCheckBox("Apenas RAW")
         self.dry_run_check = QCheckBox("Dry-run")
         self.dry_run_check.setChecked(True)
+        self.only_raw_check.setToolTip("Processa somente arquivos RAW (ignora JPEGs e derivados)")
+        self.dry_run_check.setToolTip(
+            "Simula a execução sem escrever arquivos ou alterar metadados"
+        )
 
         flags_layout.addStretch()
         flags_layout.addWidget(self.only_raw_check)
@@ -277,6 +298,8 @@ class MCPGui(QMainWindow):
         self.host_lmstudio = QRadioButton("LM Studio")
         self.host_group.addButton(self.host_ollama)
         self.host_group.addButton(self.host_lmstudio)
+        self.host_ollama.setToolTip("Usa um servidor Ollama para executar o modelo")
+        self.host_lmstudio.setToolTip("Usa um servidor LM Studio para executar o modelo")
         host_layout = QHBoxLayout()
         host_layout.setSpacing(14)
         host_layout.addWidget(self.host_ollama)
@@ -287,6 +310,8 @@ class MCPGui(QMainWindow):
 
         self.model_edit = QLineEdit()
         self.url_edit = QLineEdit()
+        self.url_edit.setToolTip("URL base do servidor LLM escolhido")
+        self.model_edit.setToolTip("Nome do modelo carregado no servidor selecionado")
 
         url_label = QLabel("URL do servidor:")
         url_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -332,6 +357,7 @@ class MCPGui(QMainWindow):
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        self.log_text.setToolTip("Saída detalhada das ações executadas pelo host")
 
         clear_log = QPushButton("Limpar log")
         self._standardize_button(clear_log)
@@ -359,6 +385,7 @@ class MCPGui(QMainWindow):
 
         self.run_button = QPushButton("Executar host")
         self._standardize_button(self.run_button)
+        self.run_button.setToolTip("Inicia o host com os parâmetros configurados")
         self.run_button.clicked.connect(self.run_host)
 
         progress_row = QHBoxLayout()
