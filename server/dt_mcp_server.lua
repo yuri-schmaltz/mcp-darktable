@@ -532,7 +532,7 @@ local function tool_export_collection(args)
     end
 
     -- comando simples; ajuste flags conforme sua necessidade
-      local cmd = string.format('darktable-cli "%s" "%s"', escape_format(input), out)
+    local cmd = string.format('darktable-cli "%s" "%s"', input, out)
     local success, exit_code, stderr_output, exit_reason = run_command_capture(cmd)
 
     if success then
