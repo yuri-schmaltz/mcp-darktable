@@ -39,7 +39,6 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
-    QSizePolicy,
 )
 
 from interactive_cli import DEFAULT_LIMIT, DEFAULT_MIN_RATING, RunConfig
@@ -117,6 +116,7 @@ class MCPGui(QMainWindow):
             QPushButton {
                 padding: 6px 14px;
                 min-height: 28px;
+                min-width: 140px;
             }
 
             QCheckBox,
@@ -136,14 +136,14 @@ class MCPGui(QMainWindow):
 
         main_layout = QVBoxLayout(central)
         main_layout.setContentsMargins(14, 14, 14, 14)
-        main_layout.setSpacing(10)
+        main_layout.setSpacing(14)
 
         # ---------------------- Grupo: Parâmetros principais --------------------
         top_group = QGroupBox("Parâmetros principais")
         top_layout = QGridLayout(top_group)
-        top_layout.setContentsMargins(12, 10, 12, 10)
-        top_layout.setHorizontalSpacing(16)
-        top_layout.setVerticalSpacing(8)
+        top_layout.setContentsMargins(14, 12, 14, 12)
+        top_layout.setHorizontalSpacing(14)
+        top_layout.setVerticalSpacing(12)
 
         # Linha: Modo / Fonte
         mode_label = QLabel("Modo:")
@@ -189,9 +189,9 @@ class MCPGui(QMainWindow):
         # -------------------------- Grupo: Filtros e opções ---------------------
         filter_group = QGroupBox("Filtros e opções")
         filter_layout = QGridLayout(filter_group)
-        filter_layout.setContentsMargins(12, 10, 12, 10)
-        filter_layout.setHorizontalSpacing(10)
-        filter_layout.setVerticalSpacing(8)
+        filter_layout.setContentsMargins(14, 12, 14, 12)
+        filter_layout.setHorizontalSpacing(14)
+        filter_layout.setVerticalSpacing(12)
 
         # col 0 = label, col 1 = campo (expansível), col 2 = botão
         filter_layout.setColumnStretch(1, 1)
@@ -216,25 +216,26 @@ class MCPGui(QMainWindow):
         # Prompt custom (+ botão Selecionar)
         self._add_form_row(filter_layout, 3, "Prompt custom:", self.prompt_edit)
         self.prompt_button = QPushButton("Selecionar")
-        self.prompt_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self._standardize_button(self.prompt_button)
         self.prompt_button.clicked.connect(self._choose_prompt_file)
         filter_layout.addWidget(self.prompt_button, 3, 2)
 
         # Dir export (+ botão Selecionar)
         self._add_form_row(filter_layout, 4, "Dir export:", self.target_edit)
         self.target_button = QPushButton("Selecionar")
-        self.target_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self._standardize_button(self.target_button)
         self.target_button.clicked.connect(self._choose_target_dir)
         filter_layout.addWidget(self.target_button, 4, 2)
 
         # Checkboxes
         flags_layout = QHBoxLayout()
-        flags_layout.setSpacing(16)
+        flags_layout.setSpacing(20)
 
         self.only_raw_check = QCheckBox("Apenas RAW")
         self.dry_run_check = QCheckBox("Dry-run")
         self.dry_run_check.setChecked(True)
 
+        flags_layout.addStretch()
         flags_layout.addWidget(self.only_raw_check)
         flags_layout.addWidget(self.dry_run_check)
         flags_layout.addStretch()
@@ -247,9 +248,9 @@ class MCPGui(QMainWindow):
         # ------------------------------- Grupo LLM ------------------------------
         llm_group = QGroupBox("LLM")
         llm_layout = QGridLayout(llm_group)
-        llm_layout.setContentsMargins(12, 10, 12, 10)
-        llm_layout.setHorizontalSpacing(10)
-        llm_layout.setVerticalSpacing(8)
+        llm_layout.setContentsMargins(14, 12, 14, 12)
+        llm_layout.setHorizontalSpacing(14)
+        llm_layout.setVerticalSpacing(12)
         llm_layout.setColumnStretch(1, 1)
 
         framework_label = QLabel("Framework:")
@@ -261,7 +262,7 @@ class MCPGui(QMainWindow):
         self.host_group.addButton(self.host_ollama)
         self.host_group.addButton(self.host_lmstudio)
         host_layout = QHBoxLayout()
-        host_layout.setSpacing(10)
+        host_layout.setSpacing(14)
         host_layout.addWidget(self.host_ollama)
         host_layout.addWidget(self.host_lmstudio)
         host_layout.addStretch()
@@ -273,36 +274,48 @@ class MCPGui(QMainWindow):
 
         url_row = self._add_form_row(llm_layout, 1, "URL do servidor:", self.url_edit)
 
-        actions_layout = QHBoxLayout()
-        actions_layout.setSpacing(8)
-
         check_button = QPushButton("Verificar conectividade")
+        self._standardize_button(check_button)
         check_button.clicked.connect(self.check_connectivity)
         url_row.addWidget(check_button)
 
         model_row = self._add_form_row(llm_layout, 2, "Modelo:", self.model_edit)
         list_button = QPushButton("Listar modelos")
+        self._standardize_button(list_button)
         list_button.clicked.connect(self.list_models)
         model_row.addWidget(list_button)
 
         download_button = QPushButton("Baixar modelo")
+        self._standardize_button(download_button)
         download_button.clicked.connect(self.download_model)
         model_row.addWidget(download_button)
         model_row.addStretch()
 
-        run_button = QPushButton("Executar host")
-        run_button.clicked.connect(self.run_host)
-        actions_layout.addWidget(run_button)
-
-        actions_layout.addStretch()
-        llm_layout.addLayout(actions_layout, 3, 0, 1, 2)
-
         main_layout.addWidget(llm_group)
 
-        # ------------------------- Status + barra de progresso ------------------
-        status_layout = QHBoxLayout()
-        status_layout.setContentsMargins(0, 0, 0, 0)
-        status_layout.setSpacing(10)
+        # ------------------------------------ Log -------------------------------
+        log_group = QGroupBox("Log")
+        log_layout = QVBoxLayout(log_group)
+        log_layout.setContentsMargins(14, 12, 14, 12)
+        log_layout.setSpacing(10)
+
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+
+        clear_log = QPushButton("Limpar log")
+        self._standardize_button(clear_log)
+        clear_log.setToolTip("Remove o conteúdo exibido acima")
+        clear_log.clicked.connect(self.log_text.clear)
+
+        log_layout.addWidget(self.log_text)
+        log_layout.addWidget(clear_log, alignment=Qt.AlignmentFlag.AlignRight)
+
+        main_layout.addWidget(log_group, stretch=1)
+
+        progress_layout = QVBoxLayout()
+        progress_layout.setContentsMargins(0, 10, 0, 0)
+        progress_layout.setSpacing(8)
 
         self.status_label = QLabel("Pronto para configurar a execução.")
         self.status_label.setWordWrap(True)
@@ -312,30 +325,22 @@ class MCPGui(QMainWindow):
         self.progress.setRange(0, 1)
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
+        self.progress.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
-        status_layout.addWidget(self.status_label)
-        status_layout.addWidget(self.progress)
+        self.run_button = QPushButton("Executar host")
+        self._standardize_button(self.run_button)
+        self.run_button.clicked.connect(self.run_host)
 
-        main_layout.addLayout(status_layout)
+        progress_row = QHBoxLayout()
+        progress_row.setSpacing(12)
+        progress_row.addWidget(self.progress)
+        progress_row.addStretch()
+        progress_row.addWidget(self.run_button)
 
-        # ------------------------------------ Log -------------------------------
-        log_group = QGroupBox("Log")
-        log_layout = QVBoxLayout(log_group)
-        log_layout.setContentsMargins(10, 10, 10, 10)
-        log_layout.setSpacing(8)
+        progress_layout.addWidget(self.status_label)
+        progress_layout.addLayout(progress_row)
 
-        self.log_text = QTextEdit()
-        self.log_text.setReadOnly(True)
-        self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
-
-        clear_log = QPushButton("Limpar log")
-        clear_log.setToolTip("Remove o conteúdo exibido acima")
-        clear_log.clicked.connect(self.log_text.clear)
-
-        log_layout.addWidget(self.log_text)
-        log_layout.addWidget(clear_log, alignment=Qt.AlignmentFlag.AlignRight)
-
-        main_layout.addWidget(log_group, stretch=1)
+        main_layout.addLayout(progress_layout)
 
     def _add_form_row(
         self,
@@ -346,19 +351,23 @@ class MCPGui(QMainWindow):
     ) -> QHBoxLayout:
         label = QLabel(label_text)
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        label.setMinimumWidth(120)
+        label.setMinimumWidth(140)
 
-        widget.setMinimumWidth(280)
+        widget.setMinimumWidth(320)
         widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         widget_layout = QHBoxLayout()
-        widget_layout.setSpacing(8)
+        widget_layout.setSpacing(10)
         widget_layout.addWidget(widget)
 
         layout.addWidget(label, row, 0)
         layout.addLayout(widget_layout, row, 1)
 
         return widget_layout
+
+    def _standardize_button(self, button: QPushButton) -> None:
+        button.setMinimumWidth(140)
+        button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
     # ----------------------------------------------------------------- Defaults --
 
@@ -587,52 +596,6 @@ class MCPGui(QMainWindow):
             for m in data.get("models", [])
             if m.get("name")
         ]
-
-    def download_model(self) -> None:
-        def task() -> None:
-            host = self._selected_host()
-            if host != "ollama":
-                self._append_log("Download automático disponível apenas para Ollama.")
-                return
-
-            model = self.model_edit.text().strip() or OLLAMA_MODEL
-            url = self.url_edit.text().strip() or OLLAMA_URL
-
-            statuses = self._pull_ollama_model(model, url)
-            self._append_log(
-                f"Download de '{model}':\n- " + "\n- ".join(statuses)
-            )
-
-        self._run_async("Baixando modelo...", task)
-
-    def _pull_ollama_model(self, model: str, url: str) -> List[str]:
-        base = _base_url(url)
-        resp = requests.post(
-            f"{base}/api/pull",
-            json={"model": model},
-            stream=True,
-            timeout=5,
-        )
-        resp.raise_for_status()
-
-        statuses: List[str] = []
-        for line in resp.iter_lines():
-            if not line:
-                continue
-            try:
-                data = json.loads(line.decode("utf-8"))
-            except Exception:
-                continue
-
-            status = data.get("status") or data.get("message")
-            if status:
-                statuses.append(status)
-
-        if not statuses:
-            statuses.append(
-                "Download iniciado; acompanhe logs do Ollama para progresso."
-            )
-        return statuses
 
     def _list_lmstudio_models(self, url: str) -> List[str]:
         base = _base_url(url)
