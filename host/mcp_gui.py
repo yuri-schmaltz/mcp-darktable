@@ -287,8 +287,7 @@ class MCPGui(QMainWindow):
         self.model_edit = QLineEdit()
         self.url_edit = QLineEdit()
 
-        self._add_form_row(llm_layout, 0, "Modelo:", self.model_edit)
-        self._add_form_row(llm_layout, 1, "URL do servidor:", self.url_edit)
+        url_row = self._add_form_row(llm_layout, 1, "URL do servidor:", self.url_edit)
 
         actions_layout = QHBoxLayout()
         actions_layout.setSpacing(8)
@@ -312,7 +311,7 @@ class MCPGui(QMainWindow):
         actions_layout.addWidget(run_button)
 
         actions_layout.addStretch()
-        llm_layout.addLayout(actions_layout, 2, 0, 1, 2)
+        llm_layout.addLayout(actions_layout, 3, 0, 1, 2)
 
         main_layout.addWidget(llm_group)
 
@@ -360,7 +359,7 @@ class MCPGui(QMainWindow):
         row: int,
         label_text: str,
         widget: QLineEdit,
-    ) -> None:
+    ) -> QHBoxLayout:
         label = QLabel(label_text)
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         label.setMinimumWidth(120)
@@ -368,8 +367,14 @@ class MCPGui(QMainWindow):
         widget.setMinimumWidth(280)
         widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
+        widget_layout = QHBoxLayout()
+        widget_layout.setSpacing(8)
+        widget_layout.addWidget(widget)
+
         layout.addWidget(label, row, 0)
-        layout.addWidget(widget, row, 1)
+        layout.addLayout(widget_layout, row, 1)
+
+        return widget_layout
 
     # ----------------------------------------------------------------- Defaults --
 
