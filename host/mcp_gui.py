@@ -87,40 +87,68 @@ class MCPGui(QMainWindow):
             """
             QWidget {
                 font-size: 13px;
+                background-color: #f6f7fb;
+                color: #1f2933;
             }
 
             QGroupBox {
                 font-weight: 600;
-                margin-top: 10px;
+                margin-top: 12px;
+                border: 1px solid #d4dae3;
+                border-radius: 6px;
+                padding-top: 10px;
+                background-color: #ffffff;
             }
 
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 10px;
-                padding: 0 4px;
+                padding: 0 6px;
+                background-color: transparent;
             }
 
             QLabel {
-                color: #e0e0e0;
+                color: #1f2933;
             }
 
             QLineEdit,
             QComboBox,
-            QSpinBox {
-                padding: 4px 6px;
-                min-height: 26px;
+            QSpinBox,
+            QTextEdit {
+                padding: 6px 8px;
+                min-height: 28px;
+                border: 1px solid #c8d1dd;
+                border-radius: 4px;
+                background-color: #ffffff;
+            }
+
+            QLineEdit:focus,
+            QComboBox:focus,
+            QSpinBox:focus,
+            QTextEdit:focus {
+                border-color: #6283e6;
             }
 
             QTextEdit {
-                padding: 4px 6px;
-                min-height: 140px;
+                min-height: 150px;
                 font-family: "JetBrains Mono", "Fira Code", monospace;
             }
 
             QPushButton {
-                padding: 6px 14px;
-                min-height: 28px;
+                padding: 8px 14px;
+                min-height: 30px;
                 min-width: 140px;
+                background-color: #e7ecf5;
+                border: 1px solid #c9d1dd;
+                border-radius: 6px;
+            }
+
+            QPushButton:hover {
+                background-color: #d9e2f2;
+            }
+
+            QPushButton:pressed {
+                background-color: #c6d4ee;
             }
 
             QCheckBox,
@@ -139,15 +167,15 @@ class MCPGui(QMainWindow):
         self.setCentralWidget(central)
 
         main_layout = QVBoxLayout(central)
-        main_layout.setContentsMargins(14, 14, 14, 14)
-        main_layout.setSpacing(14)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(18)
 
         # ---------------------- Grupo: Parâmetros principais --------------------
         top_group = QGroupBox("Parâmetros principais")
         top_layout = QGridLayout(top_group)
-        top_layout.setContentsMargins(14, 12, 14, 12)
+        top_layout.setContentsMargins(16, 14, 16, 18)
         top_layout.setHorizontalSpacing(14)
-        top_layout.setVerticalSpacing(12)
+        top_layout.setVerticalSpacing(14)
 
         # Linha: Modo / Fonte / Rating mínimo / Limite
         mode_label = QLabel("Modo:")
@@ -203,9 +231,9 @@ class MCPGui(QMainWindow):
         # -------------------------- Grupo: Filtros e opções ---------------------
         filter_group = QGroupBox("Filtros e opções")
         filter_layout = QGridLayout(filter_group)
-        filter_layout.setContentsMargins(14, 12, 14, 12)
+        filter_layout.setContentsMargins(16, 16, 16, 18)
         filter_layout.setHorizontalSpacing(14)
-        filter_layout.setVerticalSpacing(12)
+        filter_layout.setVerticalSpacing(16)
 
         # col 0 = label, col 1 = campo (expansível), col 2 = botão
         filter_layout.setColumnStretch(1, 1)
@@ -234,7 +262,7 @@ class MCPGui(QMainWindow):
         # Prompt custom (+ botões Selecionar / Gerar modelo)
         self._add_form_row(filter_layout, 3, "Prompt custom:", self.prompt_edit)
         prompt_buttons = QHBoxLayout()
-        prompt_buttons.setSpacing(8)
+        prompt_buttons.setSpacing(10)
 
         self.prompt_button = QPushButton("Selecionar")
         self._standardize_button(self.prompt_button)
@@ -259,7 +287,8 @@ class MCPGui(QMainWindow):
 
         # Checkboxes
         flags_layout = QHBoxLayout()
-        flags_layout.setSpacing(20)
+        flags_layout.setContentsMargins(0, 10, 0, 6)
+        flags_layout.setSpacing(18)
 
         self.only_raw_check = QCheckBox("Apenas RAW")
         self.dry_run_check = QCheckBox("Dry-run")
@@ -282,9 +311,9 @@ class MCPGui(QMainWindow):
         # ------------------------------- Grupo LLM ------------------------------
         llm_group = QGroupBox("LLM")
         llm_layout = QGridLayout(llm_group)
-        llm_layout.setContentsMargins(14, 12, 14, 12)
+        llm_layout.setContentsMargins(16, 16, 16, 18)
         llm_layout.setHorizontalSpacing(14)
-        llm_layout.setVerticalSpacing(12)
+        llm_layout.setVerticalSpacing(16)
         llm_layout.setColumnStretch(1, 1)
         llm_layout.setColumnStretch(3, 1)
 
@@ -326,36 +355,43 @@ class MCPGui(QMainWindow):
         llm_layout.addWidget(model_label, 1, 2)
         llm_layout.addWidget(self.model_edit, 1, 3)
 
+        actions_layout = QHBoxLayout()
+        actions_layout.setContentsMargins(0, 6, 0, 0)
+        actions_layout.setSpacing(10)
+        actions_layout.addStretch()
+
         list_button = QPushButton()
         list_button.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)
         )
         list_button.setToolTip("Listar modelos")
-        list_button.setFixedSize(40, 32)
+        list_button.setFixedSize(44, 34)
         list_button.clicked.connect(self.list_models)
-        llm_layout.addWidget(list_button, 1, 4)
+        actions_layout.addWidget(list_button)
 
         check_button = QPushButton()
         check_button.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
         )
         check_button.setToolTip("Verificar conectividade")
-        check_button.setFixedSize(40, 32)
+        check_button.setFixedSize(44, 34)
         check_button.clicked.connect(self.check_connectivity)
-        llm_layout.addWidget(check_button, 1, 5)
+        actions_layout.addWidget(check_button)
+
+        llm_layout.addLayout(actions_layout, 2, 0, 1, 4)
 
         main_layout.addWidget(llm_group)
 
         # ------------------------------------ Log -------------------------------
         log_group = QGroupBox("Log")
         log_layout = QVBoxLayout(log_group)
-        log_layout.setContentsMargins(14, 12, 14, 12)
-        log_layout.setSpacing(10)
+        log_layout.setContentsMargins(16, 16, 16, 18)
+        log_layout.setSpacing(14)
 
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
-        self.log_text.setFixedHeight(70)
+        self.log_text.setFixedHeight(90)
         self.log_text.setToolTip("Saída detalhada das ações executadas pelo host")
 
         clear_log = QPushButton("Limpar log")
@@ -374,7 +410,8 @@ class MCPGui(QMainWindow):
         self.run_button.clicked.connect(self.run_host)
 
         run_row = QHBoxLayout()
-        run_row.setContentsMargins(0, 8, 0, 0)
+        run_row.setContentsMargins(0, 16, 0, 4)
+        run_row.setSpacing(12)
         run_row.addStretch()
         run_row.addWidget(self.run_button)
 
