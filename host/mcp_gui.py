@@ -34,7 +34,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QProgressBar,
     QRadioButton,
-    QScrollArea,
     QSizePolicy,
     QSpinBox,
     QStyle,
@@ -133,12 +132,8 @@ class MCPGui(QMainWindow):
         )
 
     def _build_layout(self) -> None:
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        self.setCentralWidget(scroll_area)
-
         central = QWidget()
-        scroll_area.setWidget(central)
+        self.setCentralWidget(central)
 
         main_layout = QVBoxLayout(central)
         main_layout.setContentsMargins(14, 14, 14, 14)
@@ -357,6 +352,7 @@ class MCPGui(QMainWindow):
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        self.log_text.setFixedHeight(70)
         self.log_text.setToolTip("Saída detalhada das ações executadas pelo host")
 
         clear_log = QPushButton("Limpar log")
