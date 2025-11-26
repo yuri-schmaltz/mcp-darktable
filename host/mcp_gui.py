@@ -33,8 +33,9 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QProgressBar,
-    QSizePolicy,
     QRadioButton,
+    QScrollArea,
+    QSizePolicy,
     QSpinBox,
     QTextEdit,
     QVBoxLayout,
@@ -61,8 +62,8 @@ class MCPGui(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("darktable MCP - GUI")
-        self.resize(960, 720)
-        self.setMinimumSize(880, 640)
+        self.resize(1040, 760)
+        self.setMinimumSize(820, 620)
         self._current_thread: Optional[threading.Thread] = None
 
         self.log_signal.connect(self._append_log_ui)
@@ -131,8 +132,12 @@ class MCPGui(QMainWindow):
         )
 
     def _build_layout(self) -> None:
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        self.setCentralWidget(scroll_area)
+
         central = QWidget()
-        self.setCentralWidget(central)
+        scroll_area.setWidget(central)
 
         main_layout = QVBoxLayout(central)
         main_layout.setContentsMargins(14, 14, 14, 14)
@@ -347,9 +352,9 @@ class MCPGui(QMainWindow):
     ) -> QHBoxLayout:
         label = QLabel(label_text)
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        label.setMinimumWidth(140)
+        label.setMinimumWidth(120)
 
-        widget.setMinimumWidth(320)
+        widget.setMinimumWidth(260)
         widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         widget_layout = QHBoxLayout()
@@ -362,7 +367,7 @@ class MCPGui(QMainWindow):
         return widget_layout
 
     def _standardize_button(self, button: QPushButton) -> None:
-        button.setMinimumWidth(140)
+        button.setMinimumWidth(120)
         button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
     # ----------------------------------------------------------------- Defaults --
