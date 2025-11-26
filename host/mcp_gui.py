@@ -87,17 +87,17 @@ class MCPGui(QMainWindow):
             """
             QWidget {
                 font-size: 13px;
-                background-color: #f6f7fb;
-                color: #1f2933;
+                background-color: #2f2f2f;
+                color: #e3e3e3;
             }
 
             QGroupBox {
                 font-weight: 600;
                 margin-top: 12px;
-                border: 1px solid #d4dae3;
+                border: 1px solid #4a4a4a;
                 border-radius: 6px;
                 padding-top: 10px;
-                background-color: #ffffff;
+                background-color: #3a3a3a;
             }
 
             QGroupBox::title {
@@ -108,7 +108,7 @@ class MCPGui(QMainWindow):
             }
 
             QLabel {
-                color: #1f2933;
+                color: #e3e3e3;
             }
 
             QLineEdit,
@@ -117,16 +117,16 @@ class MCPGui(QMainWindow):
             QTextEdit {
                 padding: 6px 8px;
                 min-height: 28px;
-                border: 1px solid #c8d1dd;
+                border: 1px solid #5a5a5a;
                 border-radius: 4px;
-                background-color: #ffffff;
+                background-color: #3d3d3d;
             }
 
             QLineEdit:focus,
             QComboBox:focus,
             QSpinBox:focus,
             QTextEdit:focus {
-                border-color: #6283e6;
+                border-color: #77a0ff;
             }
 
             QTextEdit {
@@ -138,17 +138,18 @@ class MCPGui(QMainWindow):
                 padding: 8px 14px;
                 min-height: 30px;
                 min-width: 140px;
-                background-color: #e7ecf5;
-                border: 1px solid #c9d1dd;
+                background-color: #4a4a4a;
+                border: 1px solid #5a5a5a;
                 border-radius: 6px;
+                color: #f0f0f0;
             }
 
             QPushButton:hover {
-                background-color: #d9e2f2;
+                background-color: #5a5a5a;
             }
 
             QPushButton:pressed {
-                background-color: #c6d4ee;
+                background-color: #3f3f3f;
             }
 
             QCheckBox,
