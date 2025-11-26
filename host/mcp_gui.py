@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QSpinBox,
+    QStyle,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -257,6 +258,7 @@ class MCPGui(QMainWindow):
         llm_layout.setHorizontalSpacing(14)
         llm_layout.setVerticalSpacing(12)
         llm_layout.setColumnStretch(1, 1)
+        llm_layout.setColumnStretch(3, 1)
 
         framework_label = QLabel("Framework:")
         framework_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -277,20 +279,38 @@ class MCPGui(QMainWindow):
         self.model_edit = QLineEdit()
         self.url_edit = QLineEdit()
 
-        url_row = self._add_form_row(llm_layout, 1, "URL do servidor:", self.url_edit)
+        url_label = QLabel("URL do servidor:")
+        url_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        url_label.setMinimumWidth(120)
+        self._style_form_field(self.url_edit)
 
-        check_button = QPushButton("Verificar conectividade")
-        self._standardize_button(check_button)
-        check_button.clicked.connect(self.check_connectivity)
-        url_row.addWidget(check_button)
+        model_label = QLabel("Modelo:")
+        model_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        model_label.setMinimumWidth(120)
+        self._style_form_field(self.model_edit)
 
-        model_row = self._add_form_row(llm_layout, 2, "Modelo:", self.model_edit)
-        list_button = QPushButton("Listar modelos")
-        self._standardize_button(list_button)
+        llm_layout.addWidget(url_label, 1, 0)
+        llm_layout.addWidget(self.url_edit, 1, 1)
+        llm_layout.addWidget(model_label, 1, 2)
+        llm_layout.addWidget(self.model_edit, 1, 3)
+
+        list_button = QPushButton()
+        list_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)
+        )
+        list_button.setToolTip("Listar modelos")
+        list_button.setFixedSize(40, 32)
         list_button.clicked.connect(self.list_models)
-        model_row.addWidget(list_button)
+        llm_layout.addWidget(list_button, 1, 4)
 
-        model_row.addStretch()
+        check_button = QPushButton()
+        check_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
+        )
+        check_button.setToolTip("Verificar conectividade")
+        check_button.setFixedSize(40, 32)
+        check_button.clicked.connect(self.check_connectivity)
+        llm_layout.addWidget(check_button, 1, 5)
 
         main_layout.addWidget(llm_group)
 
@@ -343,6 +363,10 @@ class MCPGui(QMainWindow):
 
         main_layout.addLayout(progress_layout)
 
+    def _style_form_field(self, widget: QLineEdit) -> None:
+        widget.setMinimumWidth(260)
+        widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
     def _add_form_row(
         self,
         layout: QGridLayout,
@@ -354,8 +378,7 @@ class MCPGui(QMainWindow):
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         label.setMinimumWidth(120)
 
-        widget.setMinimumWidth(260)
-        widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self._style_form_field(widget)
 
         widget_layout = QHBoxLayout()
         widget_layout.setSpacing(10)
