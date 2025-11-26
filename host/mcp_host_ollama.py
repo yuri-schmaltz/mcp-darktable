@@ -340,7 +340,7 @@ def fetch_images(client, args):
 
 # --------- LOG ---------
 def save_log(mode, source, images, model_answer, extra=None):
-    LOG_DIR.mkdir(exist_ok=True)
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
     ts = time.strftime("%Y%m%d-%H%M%S")
     log_file = LOG_DIR / f"batch-{mode}-{ts}.json"
 

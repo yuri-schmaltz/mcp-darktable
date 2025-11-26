@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QSpinBox,
+    QStyle,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -44,7 +45,7 @@ from PySide6.QtWidgets import (
 
 from interactive_cli import DEFAULT_LIMIT, DEFAULT_MIN_RATING, RunConfig
 from mcp_host_lmstudio import LMSTUDIO_MODEL, LMSTUDIO_URL
-from mcp_host_ollama import OLLAMA_MODEL, OLLAMA_URL
+from mcp_host_ollama import OLLAMA_MODEL, OLLAMA_URL, load_prompt as load_ollama_prompt
 
 
 def _base_url(full_url: str) -> str:
@@ -150,7 +151,7 @@ class MCPGui(QMainWindow):
         top_layout.setHorizontalSpacing(14)
         top_layout.setVerticalSpacing(12)
 
-        # Linha: Modo / Fonte
+        # Linha: Modo / Fonte / Rating mínimo / Limite
         mode_label = QLabel("Modo:")
         mode_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.mode_combo = QComboBox()
@@ -167,12 +168,6 @@ class MCPGui(QMainWindow):
             "Escolhe de onde as imagens serão obtidas: todas, por caminho, por tag ou coleção"
         )
 
-        top_layout.addWidget(mode_label, 0, 0)
-        top_layout.addWidget(self.mode_combo, 0, 1)
-        top_layout.addWidget(source_label, 0, 2)
-        top_layout.addWidget(self.source_combo, 0, 3)
-
-        # Linha: Rating mínimo / Limite
         min_label = QLabel("Rating mínimo:")
         min_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.min_rating_spin = QSpinBox()
@@ -193,10 +188,14 @@ class MCPGui(QMainWindow):
             "Quantidade máxima de imagens processadas nesta execução"
         )
 
-        top_layout.addWidget(min_label, 1, 0)
-        top_layout.addWidget(self.min_rating_spin, 1, 1)
-        top_layout.addWidget(limit_label, 1, 2)
-        top_layout.addWidget(self.limit_spin, 1, 3)
+        top_layout.addWidget(mode_label, 0, 0)
+        top_layout.addWidget(self.mode_combo, 0, 1)
+        top_layout.addWidget(source_label, 0, 2)
+        top_layout.addWidget(self.source_combo, 0, 3)
+        top_layout.addWidget(min_label, 0, 4)
+        top_layout.addWidget(self.min_rating_spin, 0, 5)
+        top_layout.addWidget(limit_label, 0, 6)
+        top_layout.addWidget(self.limit_spin, 0, 7)
 
         top_layout.setColumnStretch(1, 1)
         top_layout.setColumnStretch(3, 1)
@@ -234,13 +233,23 @@ class MCPGui(QMainWindow):
         # Collection
         self._add_form_row(filter_layout, 2, "Coleção:", self.collection_edit)
 
-        # Prompt custom (+ botão Selecionar)
+        # Prompt custom (+ botões Selecionar / Gerar modelo)
         self._add_form_row(filter_layout, 3, "Prompt custom:", self.prompt_edit)
+        prompt_buttons = QHBoxLayout()
+        prompt_buttons.setSpacing(8)
+
         self.prompt_button = QPushButton("Selecionar")
         self._standardize_button(self.prompt_button)
         self.prompt_button.clicked.connect(self._choose_prompt_file)
-        self.prompt_button.setToolTip("Escolhe um arquivo .md para usar como prompt customizado")
-        filter_layout.addWidget(self.prompt_button, 3, 2)
+        prompt_buttons.addWidget(self.prompt_button)
+
+        self.prompt_generate_button = QPushButton("Gerar modelo")
+        self._standardize_button(self.prompt_generate_button)
+        self.prompt_generate_button.clicked.connect(self._generate_prompt_template)
+        prompt_buttons.addWidget(self.prompt_generate_button)
+
+        prompt_buttons.addStretch()
+        filter_layout.addLayout(prompt_buttons, 3, 2)
 
         # Dir export (+ botão Selecionar)
         self._add_form_row(filter_layout, 4, "Dir export:", self.target_edit)
@@ -279,6 +288,7 @@ class MCPGui(QMainWindow):
         llm_layout.setHorizontalSpacing(14)
         llm_layout.setVerticalSpacing(12)
         llm_layout.setColumnStretch(1, 1)
+        llm_layout.setColumnStretch(3, 1)
 
         framework_label = QLabel("Framework:")
         framework_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -303,22 +313,38 @@ class MCPGui(QMainWindow):
         self.url_edit.setToolTip("URL base do servidor LLM escolhido")
         self.model_edit.setToolTip("Nome do modelo carregado no servidor selecionado")
 
-        url_row = self._add_form_row(llm_layout, 1, "URL do servidor:", self.url_edit)
+        url_label = QLabel("URL do servidor:")
+        url_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        url_label.setMinimumWidth(120)
+        self._style_form_field(self.url_edit)
 
-        check_button = QPushButton("Verificar conectividade")
-        self._standardize_button(check_button)
-        check_button.clicked.connect(self.check_connectivity)
-        check_button.setToolTip("Testa se o servidor LLM responde no endereço informado")
-        url_row.addWidget(check_button)
+        model_label = QLabel("Modelo:")
+        model_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        model_label.setMinimumWidth(120)
+        self._style_form_field(self.model_edit)
 
-        model_row = self._add_form_row(llm_layout, 2, "Modelo:", self.model_edit)
-        list_button = QPushButton("Listar modelos")
-        self._standardize_button(list_button)
+        llm_layout.addWidget(url_label, 1, 0)
+        llm_layout.addWidget(self.url_edit, 1, 1)
+        llm_layout.addWidget(model_label, 1, 2)
+        llm_layout.addWidget(self.model_edit, 1, 3)
+
+        list_button = QPushButton()
+        list_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)
+        )
+        list_button.setToolTip("Listar modelos")
+        list_button.setFixedSize(40, 32)
         list_button.clicked.connect(self.list_models)
-        list_button.setToolTip("Obtém a lista de modelos disponíveis no servidor")
-        model_row.addWidget(list_button)
+        llm_layout.addWidget(list_button, 1, 4)
 
-        model_row.addStretch()
+        check_button = QPushButton()
+        check_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
+        )
+        check_button.setToolTip("Verificar conectividade")
+        check_button.setFixedSize(40, 32)
+        check_button.clicked.connect(self.check_connectivity)
+        llm_layout.addWidget(check_button, 1, 5)
 
         main_layout.addWidget(llm_group)
 
@@ -373,6 +399,10 @@ class MCPGui(QMainWindow):
 
         main_layout.addLayout(progress_layout)
 
+    def _style_form_field(self, widget: QLineEdit) -> None:
+        widget.setMinimumWidth(260)
+        widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
     def _add_form_row(
         self,
         layout: QGridLayout,
@@ -384,8 +414,7 @@ class MCPGui(QMainWindow):
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         label.setMinimumWidth(120)
 
-        widget.setMinimumWidth(260)
-        widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self._style_form_field(widget)
 
         widget_layout = QHBoxLayout()
         widget_layout.setSpacing(10)
@@ -411,6 +440,47 @@ class MCPGui(QMainWindow):
         )
         if path:
             self.prompt_edit.setText(path)
+
+    def _generate_prompt_template(self) -> None:
+        mode = self.mode_combo.currentText()
+        try:
+            template = load_ollama_prompt(mode)
+        except Exception as exc:  # pragma: no cover - apenas GUI
+            QMessageBox.critical(
+                self,
+                "Erro ao gerar modelo",
+                f"Não foi possível carregar o prompt padrão para '{mode}'.\n{exc}",
+            )
+            return
+
+        suggested = Path.home() / f"prompt_{mode}.md"
+        target, _ = QFileDialog.getSaveFileName(
+            self,
+            "Salvar modelo de prompt",
+            str(suggested),
+            "Markdown (*.md);;Todos (*.*)",
+        )
+        if not target:
+            return
+
+        try:
+            target_path = Path(target).expanduser()
+            target_path.write_text(template, encoding="utf-8")
+        except Exception as exc:  # pragma: no cover - apenas GUI
+            QMessageBox.critical(
+                self,
+                "Erro ao salvar",
+                f"Não foi possível salvar o modelo em '{target}'.\n{exc}",
+            )
+            return
+
+        self.prompt_edit.setText(str(target_path))
+        QMessageBox.information(
+            self,
+            "Modelo criado",
+            "Arquivo gerado a partir do prompt padrão do modo selecionado.\n"
+            "Você pode editá-lo e o caminho já foi preenchido no campo de prompt.",
+        )
 
     def _choose_target_dir(self) -> None:
         path = QFileDialog.getExistingDirectory(
