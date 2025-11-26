@@ -22,7 +22,7 @@ DT_SERVER_CMD = ["lua", str(BASE_DIR / "server" / "dt_mcp_server.lua")]
 
 # Config padrão do LM Studio (API OpenAI-like)
 LMSTUDIO_URL = "http://localhost:1234/v1/chat/completions"  # ajuste a porta se for diferente
-LMSTUDIO_MODEL = "nome-do-modelo-no-lmstudio"  # ex.: "qwen2.5-7b-instruct"
+LMSTUDIO_MODEL = ""
 
 LOG_DIR = BASE_DIR / "logs"
 PROMPT_DIR = BASE_DIR / "config" / "prompts"
