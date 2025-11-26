@@ -145,26 +145,6 @@ class MCPGui(QMainWindow):
         top_layout.setHorizontalSpacing(16)
         top_layout.setVerticalSpacing(8)
 
-        # Linha: Framework
-        host_label = QLabel("Framework:")
-        host_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-
-        self.host_group = QButtonGroup(self)
-        self.host_ollama = QRadioButton("Ollama")
-        self.host_ollama.setChecked(True)
-        self.host_lmstudio = QRadioButton("LM Studio")
-        self.host_group.addButton(self.host_ollama)
-        self.host_group.addButton(self.host_lmstudio)
-
-        host_layout = QHBoxLayout()
-        host_layout.setSpacing(10)
-        host_layout.addWidget(self.host_ollama)
-        host_layout.addWidget(self.host_lmstudio)
-        host_layout.addStretch()
-
-        top_layout.addWidget(host_label, 0, 0)
-        top_layout.addLayout(host_layout, 0, 1, 1, 3)
-
         # Linha: Modo / Fonte
         mode_label = QLabel("Modo:")
         mode_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -176,10 +156,10 @@ class MCPGui(QMainWindow):
         self.source_combo = QComboBox()
         self.source_combo.addItems(["all", "path", "tag"])
 
-        top_layout.addWidget(mode_label, 1, 0)
-        top_layout.addWidget(self.mode_combo, 1, 1)
-        top_layout.addWidget(source_label, 1, 2)
-        top_layout.addWidget(self.source_combo, 1, 3)
+        top_layout.addWidget(mode_label, 0, 0)
+        top_layout.addWidget(self.mode_combo, 0, 1)
+        top_layout.addWidget(source_label, 0, 2)
+        top_layout.addWidget(self.source_combo, 0, 3)
 
         # Linha: Rating mínimo / Limite
         min_label = QLabel("Rating mínimo:")
@@ -196,10 +176,10 @@ class MCPGui(QMainWindow):
         self.limit_spin.setValue(DEFAULT_LIMIT)
         self.limit_spin.setFixedWidth(100)
 
-        top_layout.addWidget(min_label, 2, 0)
-        top_layout.addWidget(self.min_rating_spin, 2, 1)
-        top_layout.addWidget(limit_label, 2, 2)
-        top_layout.addWidget(self.limit_spin, 2, 3)
+        top_layout.addWidget(min_label, 1, 0)
+        top_layout.addWidget(self.min_rating_spin, 1, 1)
+        top_layout.addWidget(limit_label, 1, 2)
+        top_layout.addWidget(self.limit_spin, 1, 3)
 
         top_layout.setColumnStretch(1, 1)
         top_layout.setColumnStretch(3, 1)
