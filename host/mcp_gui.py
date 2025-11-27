@@ -374,7 +374,7 @@ class MCPGui(QMainWindow):
         target_row_layout.addWidget(self.target_button)
         target_row_layout.addStretch()
 
-        config_form.addRow("Dir export:", target_row_widget)
+        config_form.addRow("Pasta para exportação:", target_row_widget)
 
         # Checkboxes (Apenas RAW / Dry-run)
         flags_widget = QWidget()
