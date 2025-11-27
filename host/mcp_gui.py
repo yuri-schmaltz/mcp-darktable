@@ -70,7 +70,6 @@ class MCPGui(QMainWindow):
         self.setMinimumSize(940, 680)
         self._apply_window_icon()
         self._current_thread: Optional[threading.Thread] = None
-        self._control_height = 32
 
         self.log_signal.connect(self._append_log_ui)
         self.status_signal.connect(self._set_status_ui)
@@ -307,14 +306,6 @@ class MCPGui(QMainWindow):
             "Quantidade máxima de imagens processadas nesta execução"
         )
 
-        self._control_height = max(
-            self._control_height,
-            self.mode_combo.sizeHint().height(),
-            self.source_combo.sizeHint().height(),
-            self.min_rating_spin.sizeHint().height(),
-            self.limit_spin.sizeHint().height(),
-        )
-
         config_form.addRow("Modo:", self.mode_combo)
         config_form.addRow("Fonte:", self.source_combo)
         config_form.addRow("Rating mínimo:", self.min_rating_spin)
@@ -457,9 +448,7 @@ class MCPGui(QMainWindow):
             self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)
         )
         list_button.setToolTip("Listar modelos")
-        list_button.setFixedWidth(40)
-        list_button.setMinimumHeight(self._control_height)
-        list_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        list_button.setFixedSize(40, 32)
         list_button.clicked.connect(self.list_models)
 
         check_button = QPushButton()
@@ -467,9 +456,7 @@ class MCPGui(QMainWindow):
             self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
         )
         check_button.setToolTip("Verificar conectividade")
-        check_button.setFixedWidth(40)
-        check_button.setMinimumHeight(self._control_height)
-        check_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        check_button.setFixedSize(40, 32)
         check_button.clicked.connect(self.check_connectivity)
 
         actions_layout.addWidget(list_button)
@@ -582,8 +569,8 @@ class MCPGui(QMainWindow):
 
     def _standardize_button(self, button: QPushButton) -> None:
         button.setMinimumWidth(130)
-        button.setMinimumHeight(self._control_height)
-        button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        button.setMinimumHeight(32)
+        button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
     def _section_title(self, text: str) -> QLabel:
         title = QLabel(text)
