@@ -235,6 +235,8 @@ class MCPGui(QMainWindow):
                 border: 1px solid #555555;
                 border-radius: 4px;
                 background-color: #333333;
+                color: #e8e8e8;
+                font-weight: 600;
                 text-align: center;
                 min-height: 30px;
             }
@@ -550,20 +552,17 @@ class MCPGui(QMainWindow):
     def _build_status_bar(self) -> None:
         status_bar = QStatusBar()
         status_bar.setSizeGripEnabled(False)
-        status_bar.setContentsMargins(8, 0, 8, 0)
-
-        self.status_label = QLabel("Pronto para configurar a execução.")
-        self.status_label.setMinimumWidth(0)
-        self.status_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        status_bar.setContentsMargins(0, 0, 0, 0)
 
         self.progress = QProgressBar()
         self.progress.setRange(0, 1)
         self.progress.setValue(0)
-        self.progress.setTextVisible(False)
+        self.progress.setTextVisible(True)
+        self.progress.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.progress.setFormat("Pronto para configurar a execução.")
         self.progress.setFixedHeight(30)
         self.progress.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
-        status_bar.addWidget(self.status_label)
         status_bar.addPermanentWidget(self.progress, 1)
         self.setStatusBar(status_bar)
 
@@ -764,7 +763,7 @@ class MCPGui(QMainWindow):
 
     @Slot(str)
     def _set_status_ui(self, text: str) -> None:
-        self.status_label.setText(text)
+        self.progress.setFormat(text)
 
     @Slot(bool)
     def _toggle_progress(self, running: bool) -> None:
@@ -773,7 +772,7 @@ class MCPGui(QMainWindow):
         else:
             self.progress.setRange(0, 1)
             self.progress.setValue(0)
-            self.status_label.setText("Pronto.")
+            self.progress.setFormat("Pronto.")
 
     @Slot(str)
     def _show_error(self, message: str) -> None:
