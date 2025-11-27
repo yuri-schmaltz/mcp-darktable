@@ -82,7 +82,7 @@ class MCPGui(QMainWindow):
         self._apply_defaults()
         self._connect_dynamic_behaviors()
 
-    # --------------------------------------------------------------------- UI --
+    # ----------------------------- UI --------------------------------------------
 
     def _apply_window_icon(self) -> None:
         """Define o ícone da janela e da aplicação (barra de título e tarefas)."""
@@ -246,7 +246,6 @@ class MCPGui(QMainWindow):
             """
         )
 
-
     def _build_layout(self) -> None:
         central = QWidget()
         self.setCentralWidget(central)
@@ -261,8 +260,9 @@ class MCPGui(QMainWindow):
         form_column = QVBoxLayout()
         form_column.setSpacing(14)
 
-        # -------------------------- Grupo: Configuração -------------------------
-        config_group = QGroupBox("Configuração")
+    # -------------------------- Grupo: Configuração -------------------------
+        
+        config_group = QGroupBox("Configurações")
         config_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         config_layout = QVBoxLayout(config_group)
@@ -278,13 +278,13 @@ class MCPGui(QMainWindow):
         )
 
         self.mode_combo = QComboBox()
-        self.mode_combo.addItems(["rating", "tagging", "export", "tratamento"])
+        self.mode_combo.addItems(["export", "rating", "tagging", "tratamento"])
         self.mode_combo.setToolTip(
             "Define o tipo de operação: atribuir notas, sugerir tags, exportar ou tratamento"
         )
 
         self.source_combo = QComboBox()
-        self.source_combo.addItems(["all", "path", "tag", "collection"])
+        self.source_combo.addItems(["all", "collection", "path", "tag", ])
         self.source_combo.setToolTip(
             "Escolhe de onde as imagens serão obtidas: todas, por caminho, por tag ou coleção"
         )
@@ -308,10 +308,10 @@ class MCPGui(QMainWindow):
         top_layout.addRow("Rating mínimo:", self.min_rating_spin)
         top_layout.addRow("Limite:", self.limit_spin)
 
-        config_layout.addWidget(self._section_title("Parâmetros principais"))
         config_layout.addLayout(top_layout)
 
-        # -------------------------- Seção: Filtros e opções ---------------------
+    # -------------------------- Seção: Filtros e opções ---------------------
+        
         filter_layout = QFormLayout()
         filter_layout.setContentsMargins(0, 0, 0, 0)
         filter_layout.setHorizontalSpacing(16)
@@ -406,10 +406,10 @@ class MCPGui(QMainWindow):
 
         filter_layout.addRow("Execução:", flags_widget)
 
-        config_layout.addWidget(self._section_title("Filtros e opções"))
         config_layout.addLayout(filter_layout)
 
-        # ------------------------------- Seção LLM ------------------------------
+    # ------------------------------- Seção LLM ------------------------------
+        
         llm_group = QGroupBox()
         llm_group.setFlat(True)
 
@@ -449,8 +449,9 @@ class MCPGui(QMainWindow):
 
         actions_widget = QWidget()
         actions_layout = QHBoxLayout(actions_widget)
-        actions_layout.setContentsMargins(0, 4, 0, 0)
+        actions_layout.setContentsMargins(0, 0, 0, 0)
         actions_layout.setSpacing(12)
+        actions_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         list_button = QPushButton()
         list_button.setIcon(
@@ -477,6 +478,7 @@ class MCPGui(QMainWindow):
         model_row_layout.setSpacing(12)
         model_row_layout.addWidget(self.model_combo, stretch=1)
         model_row_layout.addWidget(actions_widget)
+        model_row_layout.setAlignment(actions_widget, Qt.AlignmentFlag.AlignVCenter)
 
         llm_form = QFormLayout()
         llm_form.setContentsMargins(0, 0, 0, 0)
@@ -488,12 +490,12 @@ class MCPGui(QMainWindow):
 
         llm_layout.addLayout(llm_form)
 
-        config_layout.addWidget(self._section_title("LLM"))
         config_layout.addWidget(llm_group)
 
         form_column.addWidget(config_group)
 
-        # ------------------------------------ Log -------------------------------
+    # ------------------------------------ Log -------------------------------
+        
         log_group = QGroupBox("Log")
         log_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -520,7 +522,7 @@ class MCPGui(QMainWindow):
         right_column.setSpacing(14)
         right_column.addWidget(log_group, stretch=1)
 
-        # ----------------------------- Botão principal --------------------------
+    # ----------------------------- Botão principal --------------------------
         
         self.run_button = QPushButton("Executar host")
         # marcar como botão principal para o stylesheet
@@ -552,7 +554,7 @@ class MCPGui(QMainWindow):
 
         self._build_status_bar()
 
-        # ----------------------------- Barra de Status --------------------------
+    # ----------------------------- Barra de Status --------------------------
         
     def _build_status_bar(self) -> None:
         status_bar = QStatusBar()
@@ -574,52 +576,6 @@ class MCPGui(QMainWindow):
         status_bar.addPermanentWidget(self.progress, 1)
         self.setStatusBar(status_bar)
 
-
-    # ------------------------------ MENUS DE AJUDA -----------------------------
-    
-    def _show_help_manual(self) -> None:
-        manual_text = (
-            """
-            Fluxo geral:
-            1) Escolha o host LLM (Ollama ou LM Studio).
-            2) Defina o modo: rating, tagging, export ou tratamento.
-            3) Selecione a fonte: todas as imagens, filtro por caminho, tag ou coleção.
-            4) Ajuste rating mínimo, limite de imagens e se deseja apenas RAW.
-            5) Configure modelo, URL do servidor e prompt personalizado se necessário.
-            6) Em export, informe o diretório de destino.
-            7) Clique em "Executar host" e acompanhe o log.
-
-            Dicas rápidas:
-            - Ative "Dry-run" para validar parâmetros sem alterar nada.
-            - Marque "Somente texto/metadados" para desabilitar envio de imagens.
-            - O botão "Checar host" testa conectividade com o servidor LLM.
-            - Use "Listar modelos" para carregar modelos disponíveis do servidor.
-            """
-        )
-
-        QMessageBox.information(
-            self,
-            "Manual de uso",
-            manual_text,
-        )
-
-    def _show_about_dialog(self) -> None:
-        about_text = (
-            """
-            darktable MCP GUI
-
-            Orquestrador gráfico para hosts MCP integrados ao darktable.
-            Permite configurar execuções com Ollama ou LM Studio,
-            enviar coleções de imagens, aplicar ratings/tags e
-            monitorar o progresso em tempo real.
-
-            Repositório: https://github.com/darktable-mcp
-            Licença: MIT
-            """
-        )
-
-        QMessageBox.about(self, "Sobre o aplicativo", about_text)
-
     def _standardize_button(self, button: QPushButton) -> None:
         button.setMinimumWidth(130)
         button.setMinimumHeight(32)
@@ -638,7 +594,7 @@ class MCPGui(QMainWindow):
         widget.setMinimumHeight(32)
         widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-    # ----------------------------------------------------------------- Defaults --
+    # ----------------------------- Padrões -------------------------------------
 
     def _choose_prompt_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -775,7 +731,7 @@ class MCPGui(QMainWindow):
         self.target_edit.setToolTip(tooltip)
         self.target_button.setToolTip(tooltip)
 
-    # ----------------------------------------------------------- Tarefas async --
+    # ----------------------------- Tarefas Assíncronas -------------------------------------
 
     def _run_async(self, description: str, target: Callable[[], None]) -> None:
         if self._current_thread and self._current_thread.is_alive():
@@ -832,7 +788,7 @@ class MCPGui(QMainWindow):
     def _show_error(self, message: str) -> None:
         QMessageBox.critical(self, "Erro", message)
 
-    # ------------------------------------------------------------ Conectividade --
+    # ----------------------------- Conectividade --------------------------------------
 
     def check_connectivity(self) -> None:
         def task() -> None:
@@ -876,7 +832,7 @@ class MCPGui(QMainWindow):
             else "LM Studio OK (nenhum modelo listado)"
         )
 
-    # --------------------------------------------------------------- Modelos ----
+    # ----------------------------- Modelos -----------------------------------------
 
     def list_models(self) -> None:
         def task() -> None:
@@ -936,7 +892,7 @@ class MCPGui(QMainWindow):
             self.model_combo.setEditText(current_text)
         self.model_combo.blockSignals(False)
 
-    # -------------------------------------------------------------- Execução ----
+    # ----------------------------- Execução -------------------------------------------------
 
     def run_host(self) -> None:
         try:
@@ -1012,7 +968,7 @@ class MCPGui(QMainWindow):
             extra_flags=[],
         )
 
-    # ---------------------------------------------------------- Utilidades -----
+    # ----------------------------- Utilidades -------------------------------------------
 
     def _selected_host(self) -> str:
         return "ollama" if self.host_ollama.isChecked() else "lmstudio"
