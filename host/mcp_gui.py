@@ -65,8 +65,8 @@ class MCPGui(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
 
-        self.setWindowTitle("darktable MCP - GUI")
-        self.resize(1220, 840)
+        self.setWindowTitle("Darktable MCP")
+        self.resize(1280, 880)
         self.setMinimumSize(940, 680)
         self._apply_window_icon()
         self._current_thread: Optional[threading.Thread] = None
