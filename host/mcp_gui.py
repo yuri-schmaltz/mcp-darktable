@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 import requests
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -78,7 +78,6 @@ class MCPGui(QMainWindow):
         self.models_signal.connect(self._populate_model_choices)
 
         self._apply_global_style()
-        self._build_menu_bar()
         self._build_layout()
         self._apply_defaults()
         self._connect_dynamic_behaviors()
@@ -120,34 +119,6 @@ class MCPGui(QMainWindow):
                 color: #f2f2f2;
                 border: 1px solid #555555;
                 padding: 4px 6px;
-            }
-
-            /* MENUS ---------------------------------------------------- */
-            QMenuBar {
-                background-color: #262626;
-                border-bottom: 1px solid #3a3a3a;
-            }
-
-            QMenuBar::item {
-                padding: 4px 10px;
-                background: transparent;
-            }
-
-            QMenuBar::item:selected {
-                background: #3a3a3a;
-            }
-
-            QMenu {
-                background-color: #2c2c2c;
-                border: 1px solid #444444;
-            }
-
-            QMenu::item {
-                padding: 4px 20px;
-            }
-
-            QMenu::item:selected {
-                background-color: #3a3a3a;
             }
 
             /* GROUPBOXES ---------------------------------------------- */
@@ -635,27 +606,6 @@ class MCPGui(QMainWindow):
 
         self._build_status_bar()
 
-
-    def _build_menu_bar(self) -> None:
-        menu_bar = self.menuBar()
-
-        file_menu = menu_bar.addMenu("Arquivo")
-
-        quit_action = QAction(self.style().standardIcon(QStyle.SP_TitleBarCloseButton), "Sair", self)
-        quit_action.setShortcut("Ctrl+Q")
-        quit_action.triggered.connect(self.close)
-        file_menu.addAction(quit_action)
-
-        help_menu = menu_bar.addMenu("Ajuda")
-
-        help_action = QAction(self.style().standardIcon(QStyle.SP_MessageBoxQuestion), "Manual de uso", self)
-        help_action.setShortcut("F1")
-        help_action.triggered.connect(self._show_help_manual)
-        help_menu.addAction(help_action)
-
-        about_action = QAction(self.style().standardIcon(QStyle.SP_TitleBarMenuButton), "Sobre", self)
-        about_action.triggered.connect(self._show_about_dialog)
-        help_menu.addAction(about_action)
 
     def _build_status_bar(self) -> None:
         status_bar = QStatusBar()
