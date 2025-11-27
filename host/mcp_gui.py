@@ -65,8 +65,8 @@ class MCPGui(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
 
-        self.setWindowTitle("darktable MCP - GUI")
-        self.resize(1220, 840)
+        self.setWindowTitle("Darktable MCP")
+        self.resize(1280, 880)
         self.setMinimumSize(940, 680)
         self._apply_window_icon()
         self._current_thread: Optional[threading.Thread] = None
@@ -82,7 +82,7 @@ class MCPGui(QMainWindow):
         self._apply_defaults()
         self._connect_dynamic_behaviors()
 
-    # --------------------------------------------------------------------- UI --
+    # ----------------------------- UI --------------------------------------------
 
     def _apply_window_icon(self) -> None:
         """Define o ícone da janela e da aplicação (barra de título e tarefas)."""
@@ -102,7 +102,6 @@ class MCPGui(QMainWindow):
             /* BASE ----------------------------------------------------- */
             QWidget {
                 font-size: 13px;
-                background-color: #262626;
                 color: #f2f2f2;
             }
 
@@ -247,7 +246,6 @@ class MCPGui(QMainWindow):
             """
         )
 
-
     def _build_layout(self) -> None:
         central = QWidget()
         self.setCentralWidget(central)
@@ -262,26 +260,34 @@ class MCPGui(QMainWindow):
         form_column = QVBoxLayout()
         form_column.setSpacing(14)
 
-        # ---------------------- Grupo: Parâmetros principais --------------------
-        top_group = QGroupBox("Parâmetros principais")
-        top_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    # -------------------------- Grupo: Configuração -------------------------
+        
+        config_group = QGroupBox("Configurações")
+        config_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        top_layout = QFormLayout(top_group)
-        top_layout.setContentsMargins(18, 12, 18, 12)
-        top_layout.setHorizontalSpacing(15)
-        top_layout.setVerticalSpacing(10)
-        top_layout.setLabelAlignment(
+        config_layout = QVBoxLayout(config_group)
+        config_layout.setContentsMargins(18, 14, 18, 14)
+        config_layout.setSpacing(16)
+
+        config_form = QFormLayout()
+        config_form.setContentsMargins(0, 0, 0, 0)
+        config_form.setHorizontalSpacing(16)
+        config_form.setVerticalSpacing(12)
+        config_form.setLabelAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        config_form.setFormAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
 
         self.mode_combo = QComboBox()
-        self.mode_combo.addItems(["rating", "tagging", "export", "tratamento"])
+        self.mode_combo.addItems(["export", "rating", "tagging", "tratamento"])
         self.mode_combo.setToolTip(
             "Define o tipo de operação: atribuir notas, sugerir tags, exportar ou tratamento"
         )
 
         self.source_combo = QComboBox()
-        self.source_combo.addItems(["all", "path", "tag", "collection"])
+        self.source_combo.addItems(["all", "collection", "path", "tag", ])
         self.source_combo.setToolTip(
             "Escolhe de onde as imagens serão obtidas: todas, por caminho, por tag ou coleção"
         )
@@ -300,26 +306,12 @@ class MCPGui(QMainWindow):
             "Quantidade máxima de imagens processadas nesta execução"
         )
 
-        top_layout.addRow("Modo:", self.mode_combo)
-        top_layout.addRow("Fonte:", self.source_combo)
-        top_layout.addRow("Rating mínimo:", self.min_rating_spin)
-        top_layout.addRow("Limite:", self.limit_spin)
+        config_form.addRow("Modo:", self.mode_combo)
+        config_form.addRow("Fonte:", self.source_combo)
+        config_form.addRow("Rating mínimo:", self.min_rating_spin)
+        config_form.addRow("Limite:", self.limit_spin)
 
-        form_column.addWidget(top_group)
-
-        # -------------------------- Grupo: Filtros e opções ---------------------
-        filter_group = QGroupBox("Filtros e opções")
-        filter_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-
-        # Mantém o mesmo padrão de margens e espaçamentos do grupo
-        # "Parâmetros principais" para ter linhas e alturas consistentes.
-        filter_layout = QFormLayout(filter_group)
-        filter_layout.setContentsMargins(18, 12, 18, 12)
-        filter_layout.setHorizontalSpacing(15)
-        filter_layout.setVerticalSpacing(10)  # era 30
-        filter_layout.setLabelAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
+    # -------------------------- Seção: Filtros e opções ---------------------
 
         self.path_contains_edit = QLineEdit()
         self.tag_edit = QLineEdit()
@@ -341,15 +333,15 @@ class MCPGui(QMainWindow):
         ):
             self._style_form_field(w)
 
-        filter_layout.addRow("Path contém:", self.path_contains_edit)
-        filter_layout.addRow("Tag:", self.tag_edit)
-        filter_layout.addRow("Coleção:", self.collection_edit)
+        config_form.addRow("Path contém:", self.path_contains_edit)
+        config_form.addRow("Tag:", self.tag_edit)
+        config_form.addRow("Coleção:", self.collection_edit)
 
         # Prompt custom + botões
         prompt_row_widget = QWidget()
         prompt_row_layout = QHBoxLayout(prompt_row_widget)
         prompt_row_layout.setContentsMargins(0, 0, 0, 0)
-        prompt_row_layout.setSpacing(10)
+        prompt_row_layout.setSpacing(12)
         prompt_row_layout.addWidget(self.prompt_edit, stretch=1)
 
         self.prompt_button = QPushButton("Selecionar")
@@ -364,13 +356,13 @@ class MCPGui(QMainWindow):
 
         prompt_row_layout.addStretch()
 
-        filter_layout.addRow("Prompt personalizado:", prompt_row_widget)
+        config_form.addRow("Prompt personalizado:", prompt_row_widget)
 
         # Dir export + botão
         target_row_widget = QWidget()
         target_row_layout = QHBoxLayout(target_row_widget)
         target_row_layout.setContentsMargins(0, 0, 0, 0)
-        target_row_layout.setSpacing(10)
+        target_row_layout.setSpacing(12)
         target_row_layout.addWidget(self.target_edit, stretch=1)
 
         self.target_button = QPushButton("Selecionar")
@@ -382,7 +374,7 @@ class MCPGui(QMainWindow):
         target_row_layout.addWidget(self.target_button)
         target_row_layout.addStretch()
 
-        filter_layout.addRow("Dir export:", target_row_widget)
+        config_form.addRow("Dir export:", target_row_widget)
 
         # Checkboxes (Apenas RAW / Dry-run)
         flags_widget = QWidget()
@@ -405,17 +397,17 @@ class MCPGui(QMainWindow):
         flags_layout.addWidget(self.dry_run_check)
         flags_layout.addStretch()
 
-        filter_layout.addRow("Execução:", flags_widget)
+        config_form.addRow("Execução:", flags_widget)
 
-        form_column.addWidget(filter_group)
+        config_layout.addLayout(config_form)
 
-        # ------------------------------- Grupo LLM ------------------------------
-        llm_group = QGroupBox("LLM")
-        llm_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    # ------------------------------- Seção LLM ------------------------------
+        
+        llm_group = QWidget()
 
         llm_layout = QVBoxLayout(llm_group)
-        llm_layout.setContentsMargins(18, 12, 18, 12)
-        llm_layout.setSpacing(15)
+        llm_layout.setContentsMargins(0, 0, 0, 0)
+        llm_layout.setSpacing(12)
 
         self.host_group = QButtonGroup(self)
         self.host_ollama = QRadioButton("Ollama")
@@ -431,12 +423,10 @@ class MCPGui(QMainWindow):
         host_widget = QWidget()
         host_layout = QHBoxLayout(host_widget)
         host_layout.setContentsMargins(0, 0, 0, 0)
-        host_layout.setSpacing(22)
+        host_layout.setSpacing(18)
         host_layout.addWidget(self.host_ollama)
         host_layout.addWidget(self.host_lmstudio)
         host_layout.addStretch()
-
-        llm_layout.addWidget(host_widget)
 
         self.model_combo = QComboBox()
         self.model_combo.setEditable(True)
@@ -450,18 +440,15 @@ class MCPGui(QMainWindow):
         actions_widget = QWidget()
         actions_layout = QHBoxLayout(actions_widget)
         actions_layout.setContentsMargins(0, 0, 0, 0)
-        actions_layout.setSpacing(10)
+        actions_layout.setSpacing(12)
         actions_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-
-        button_height = self.model_combo.sizeHint().height()
 
         list_button = QPushButton()
         list_button.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)
         )
         list_button.setToolTip("Listar modelos")
-        list_button.setFixedHeight(button_height)
-        list_button.setFixedWidth(44)
+        list_button.setFixedSize(40, 32)
         list_button.clicked.connect(self.list_models)
 
         check_button = QPushButton()
@@ -469,8 +456,7 @@ class MCPGui(QMainWindow):
             self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
         )
         check_button.setToolTip("Verificar conectividade")
-        check_button.setFixedHeight(button_height)
-        check_button.setFixedWidth(44)
+        check_button.setFixedSize(40, 32)
         check_button.clicked.connect(self.check_connectivity)
 
         actions_layout.addWidget(list_button)
@@ -479,23 +465,28 @@ class MCPGui(QMainWindow):
         model_row_widget = QWidget()
         model_row_layout = QHBoxLayout(model_row_widget)
         model_row_layout.setContentsMargins(0, 0, 0, 0)
-        model_row_layout.setSpacing(10)
+        model_row_layout.setSpacing(12)
         model_row_layout.addWidget(self.model_combo, stretch=1)
         model_row_layout.addWidget(actions_widget)
+        model_row_layout.setAlignment(actions_widget, Qt.AlignmentFlag.AlignVCenter)
 
         llm_form = QFormLayout()
         llm_form.setContentsMargins(0, 0, 0, 0)
-        llm_form.setHorizontalSpacing(12)
-        llm_form.setVerticalSpacing(5)
+        llm_form.setHorizontalSpacing(14)
+        llm_form.setVerticalSpacing(10)
         llm_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        llm_form.addRow("Framework:", host_widget)
         llm_form.addRow("URL:", self.url_edit)
         llm_form.addRow("Modelo:", model_row_widget)
 
         llm_layout.addLayout(llm_form)
 
-        form_column.addWidget(llm_group)
+        config_layout.addWidget(llm_group)
 
-        # ------------------------------------ Log -------------------------------
+        form_column.addWidget(config_group, stretch=1)
+
+    # ------------------------------------ Log -------------------------------
+        
         log_group = QGroupBox("Log")
         log_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -522,7 +513,7 @@ class MCPGui(QMainWindow):
         right_column.setSpacing(14)
         right_column.addWidget(log_group, stretch=1)
 
-        # ----------------------------- Botão principal --------------------------
+    # ----------------------------- Botão principal --------------------------
         
         self.run_button = QPushButton("Executar host")
         # marcar como botão principal para o stylesheet
@@ -554,7 +545,7 @@ class MCPGui(QMainWindow):
 
         self._build_status_bar()
 
-        # ----------------------------- Barra de Status --------------------------
+    # ----------------------------- Barra de Status --------------------------
         
     def _build_status_bar(self) -> None:
         status_bar = QStatusBar()
@@ -576,64 +567,25 @@ class MCPGui(QMainWindow):
         status_bar.addPermanentWidget(self.progress, 1)
         self.setStatusBar(status_bar)
 
-
-    # ------------------------------ MENUS DE AJUDA -----------------------------
-    
-    def _show_help_manual(self) -> None:
-        manual_text = (
-            """
-            Fluxo geral:
-            1) Escolha o host LLM (Ollama ou LM Studio).
-            2) Defina o modo: rating, tagging, export ou tratamento.
-            3) Selecione a fonte: todas as imagens, filtro por caminho, tag ou coleção.
-            4) Ajuste rating mínimo, limite de imagens e se deseja apenas RAW.
-            5) Configure modelo, URL do servidor e prompt personalizado se necessário.
-            6) Em export, informe o diretório de destino.
-            7) Clique em "Executar host" e acompanhe o log.
-
-            Dicas rápidas:
-            - Ative "Dry-run" para validar parâmetros sem alterar nada.
-            - Marque "Somente texto/metadados" para desabilitar envio de imagens.
-            - O botão "Checar host" testa conectividade com o servidor LLM.
-            - Use "Listar modelos" para carregar modelos disponíveis do servidor.
-            """
-        )
-
-        QMessageBox.information(
-            self,
-            "Manual de uso",
-            manual_text,
-        )
-
-    def _show_about_dialog(self) -> None:
-        about_text = (
-            """
-            darktable MCP GUI
-
-            Orquestrador gráfico para hosts MCP integrados ao darktable.
-            Permite configurar execuções com Ollama ou LM Studio,
-            enviar coleções de imagens, aplicar ratings/tags e
-            monitorar o progresso em tempo real.
-
-            Repositório: https://github.com/darktable-mcp
-            Licença: MIT
-            """
-        )
-
-        QMessageBox.about(self, "Sobre o aplicativo", about_text)
-
     def _standardize_button(self, button: QPushButton) -> None:
-        button.setMinimumWidth(120)
+        button.setMinimumWidth(130)
+        button.setMinimumHeight(32)
         button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+    def _section_title(self, text: str) -> QLabel:
+        title = QLabel(text)
+        title.setStyleSheet("font-weight: 600; margin-top: 4px; margin-bottom: 2px;")
+        title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        return title
 
     def _style_form_field(self, widget: QWidget) -> None:
         """Padroniza campos de formulário para largura e altura consistentes."""
 
-        widget.setMinimumWidth(220)
-        widget.setMinimumHeight(30)
+        widget.setMinimumWidth(260)
+        widget.setMinimumHeight(32)
         widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-    # ----------------------------------------------------------------- Defaults --
+    # ----------------------------- Padrões -------------------------------------
 
     def _choose_prompt_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -770,7 +722,7 @@ class MCPGui(QMainWindow):
         self.target_edit.setToolTip(tooltip)
         self.target_button.setToolTip(tooltip)
 
-    # ----------------------------------------------------------- Tarefas async --
+    # ----------------------------- Tarefas Assíncronas -------------------------------------
 
     def _run_async(self, description: str, target: Callable[[], None]) -> None:
         if self._current_thread and self._current_thread.is_alive():
@@ -827,7 +779,7 @@ class MCPGui(QMainWindow):
     def _show_error(self, message: str) -> None:
         QMessageBox.critical(self, "Erro", message)
 
-    # ------------------------------------------------------------ Conectividade --
+    # ----------------------------- Conectividade --------------------------------------
 
     def check_connectivity(self) -> None:
         def task() -> None:
@@ -871,7 +823,7 @@ class MCPGui(QMainWindow):
             else "LM Studio OK (nenhum modelo listado)"
         )
 
-    # --------------------------------------------------------------- Modelos ----
+    # ----------------------------- Modelos -----------------------------------------
 
     def list_models(self) -> None:
         def task() -> None:
@@ -931,7 +883,7 @@ class MCPGui(QMainWindow):
             self.model_combo.setEditText(current_text)
         self.model_combo.blockSignals(False)
 
-    # -------------------------------------------------------------- Execução ----
+    # ----------------------------- Execução -------------------------------------------------
 
     def run_host(self) -> None:
         try:
@@ -1007,7 +959,7 @@ class MCPGui(QMainWindow):
             extra_flags=[],
         )
 
-    # ---------------------------------------------------------- Utilidades -----
+    # ----------------------------- Utilidades -------------------------------------------
 
     def _selected_host(self) -> str:
         return "ollama" if self.host_ollama.isChecked() else "lmstudio"
