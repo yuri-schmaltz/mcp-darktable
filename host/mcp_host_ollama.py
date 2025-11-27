@@ -197,6 +197,10 @@ def parse_args():
         action="store_true",
         help="Lista coleções conhecidas no darktable e sai.",
     )
+    p.add_argument(
+        "--download-model",
+        help="Baixa um modelo específico do Ollama e sai.",
+    )
     return p.parse_args()
 
 # --------- UTIL: carregar prompt ---------
@@ -693,6 +697,9 @@ def main():
                 print("  -", status)
         except Exception as exc:
             print(f"[download] Falha ao iniciar download de '{target_model}': {exc}")
+            raise SystemExit(1)
+        else:
+            return
 
     try:
         client = McpClient(DT_SERVER_CMD)
