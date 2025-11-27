@@ -410,8 +410,7 @@ class MCPGui(QMainWindow):
 
     # ------------------------------- Seção LLM ------------------------------
         
-        llm_group = QGroupBox()
-        llm_group.setFlat(True)
+        llm_group = QWidget()
 
         llm_layout = QVBoxLayout(llm_group)
         llm_layout.setContentsMargins(0, 0, 0, 0)
@@ -435,8 +434,6 @@ class MCPGui(QMainWindow):
         host_layout.addWidget(self.host_ollama)
         host_layout.addWidget(self.host_lmstudio)
         host_layout.addStretch()
-
-        llm_layout.addWidget(host_widget)
 
         self.model_combo = QComboBox()
         self.model_combo.setEditable(True)
@@ -485,6 +482,7 @@ class MCPGui(QMainWindow):
         llm_form.setHorizontalSpacing(14)
         llm_form.setVerticalSpacing(10)
         llm_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        llm_form.addRow("Framework:", host_widget)
         llm_form.addRow("URL:", self.url_edit)
         llm_form.addRow("Modelo:", model_row_widget)
 
