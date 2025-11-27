@@ -387,9 +387,13 @@ class MCPGui(QMainWindow):
         filter_group = QGroupBox("Filtros e opções")
         filter_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-        filter_layout = QVBoxLayout(filter_group)
+        filter_layout = QFormLayout(filter_group)
         filter_layout.setContentsMargins(18, 12, 18, 12)
-        filter_layout.setSpacing(12)
+        filter_layout.setHorizontalSpacing(14)
+        filter_layout.setVerticalSpacing(10)
+        filter_layout.setLabelAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
 
         self.path_contains_edit = QLineEdit()
         self.tag_edit = QLineEdit()
@@ -411,34 +415,9 @@ class MCPGui(QMainWindow):
         ):
             self._style_form_field(w)
 
-        filters_grid = QGridLayout()
-        filters_grid.setHorizontalSpacing(14)
-        filters_grid.setVerticalSpacing(10)
-
-        filters_grid.addWidget(QLabel("Path:"), 0, 0)
-        filters_grid.addWidget(self.path_contains_edit, 0, 1)
-        filters_grid.addWidget(QLabel("Tag:"), 1, 0)
-        filters_grid.addWidget(self.tag_edit, 1, 1)
-        filters_grid.addWidget(QLabel("Coleção:"), 2, 0)
-        filters_grid.addWidget(self.collection_edit, 2, 1)
-
-        filters_grid.setColumnStretch(1, 1)
-
-        filters_container = QWidget()
-        filters_container.setLayout(filters_grid)
-
-        filters_row = QHBoxLayout()
-        filters_row.setContentsMargins(0, 0, 0, 0)
-        filters_row.setSpacing(12)
-
-        filters_label = QLabel("Filtros:")
-        filters_label.setMinimumWidth(120)
-        filters_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
-
-        filters_row.addWidget(filters_label)
-        filters_row.addWidget(filters_container, stretch=1)
-
-        filter_layout.addLayout(filters_row)
+        filter_layout.addRow("Path contém:", self.path_contains_edit)
+        filter_layout.addRow("Tag:", self.tag_edit)
+        filter_layout.addRow("Coleção:", self.collection_edit)
 
         # Prompt custom + botões
         prompt_row_widget = QWidget()
@@ -459,16 +438,7 @@ class MCPGui(QMainWindow):
 
         prompt_row_layout.addStretch()
 
-        prompt_row = QHBoxLayout()
-        prompt_row.setContentsMargins(0, 0, 0, 0)
-        prompt_row.setSpacing(12)
-        prompt_label = QLabel("Prompt custom:")
-        prompt_label.setMinimumWidth(120)
-        prompt_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        prompt_row.addWidget(prompt_label)
-        prompt_row.addWidget(prompt_row_widget, stretch=1)
-
-        filter_layout.addLayout(prompt_row)
+        filter_layout.addRow("Prompt custom:", prompt_row_widget)
 
         # Dir export + botão
         target_row_widget = QWidget()
@@ -486,17 +456,7 @@ class MCPGui(QMainWindow):
         target_row_layout.addWidget(self.target_button)
         target_row_layout.addStretch()
 
-        target_row = QHBoxLayout()
-        target_row.setContentsMargins(0, 0, 0, 0)
-        target_row.setSpacing(12)
-        target_label = QLabel("Dir export:")
-        target_label.setMinimumWidth(120)
-        target_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-
-        target_row.addWidget(target_label)
-        target_row.addWidget(target_row_widget, stretch=1)
-
-        filter_layout.addLayout(target_row)
+        filter_layout.addRow("Dir export:", target_row_widget)
 
         # Checkboxes (Apenas RAW / Dry-run)
         flags_widget = QWidget()
@@ -518,17 +478,7 @@ class MCPGui(QMainWindow):
         flags_layout.addWidget(self.dry_run_check)
         flags_layout.addStretch()
 
-        flags_row = QHBoxLayout()
-        flags_row.setContentsMargins(0, 0, 0, 0)
-        flags_row.setSpacing(12)
-        flags_label = QLabel("Execução:")
-        flags_label.setMinimumWidth(120)
-        flags_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-
-        flags_row.addWidget(flags_label)
-        flags_row.addWidget(flags_widget, stretch=1)
-
-        filter_layout.addLayout(flags_row)
+        filter_layout.addRow("Execução:", flags_widget)
 
         form_column.addWidget(filter_group)
 
@@ -570,26 +520,19 @@ class MCPGui(QMainWindow):
         self._style_form_field(self.url_edit)
         self._style_form_field(self.model_combo)
 
-        url_model_widget = QWidget()
-        url_model_layout = QGridLayout(url_model_widget)
-        url_model_layout.setContentsMargins(0, 0, 0, 0)
-        url_model_layout.setHorizontalSpacing(12)
-        url_model_layout.setVerticalSpacing(8)
+        llm_form = QFormLayout()
+        llm_form.setContentsMargins(0, 0, 0, 0)
+        llm_form.setHorizontalSpacing(12)
+        llm_form.setVerticalSpacing(10)
+        llm_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        llm_form.addRow("URL:", self.url_edit)
+        llm_form.addRow("Modelo:", self.model_combo)
 
-        lbl_url = QLabel("URL:")
-        lbl_model = QLabel("Modelo:")
-
-        url_model_layout.addWidget(lbl_url, 0, 0)
-        url_model_layout.addWidget(self.url_edit, 0, 1)
-        url_model_layout.addWidget(lbl_model, 1, 0)
-        url_model_layout.addWidget(self.model_combo, 1, 1)
-        url_model_layout.setColumnStretch(1, 1)
-
-        llm_layout.addWidget(url_model_widget)
+        llm_layout.addLayout(llm_form)
 
         actions_widget = QWidget()
         actions_layout = QHBoxLayout(actions_widget)
-        actions_layout.setContentsMargins(0, 6, 0, 0)
+        actions_layout.setContentsMargins(0, 4, 0, 0)
         actions_layout.setSpacing(10)
 
         list_button = QPushButton()
@@ -612,7 +555,13 @@ class MCPGui(QMainWindow):
         actions_layout.addWidget(list_button)
         actions_layout.addWidget(check_button)
 
-        llm_layout.addWidget(actions_widget)
+        actions_row = QFormLayout()
+        actions_row.setContentsMargins(0, 0, 0, 0)
+        actions_row.setHorizontalSpacing(12)
+        actions_row.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        actions_row.addRow("Ações do host:", actions_widget)
+
+        llm_layout.addLayout(actions_row)
 
         form_column.addWidget(llm_group)
 
