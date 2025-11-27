@@ -236,7 +236,7 @@ class MCPGui(QMainWindow):
                 border-radius: 4px;
                 background-color: #333333;
                 text-align: center;
-                min-height: 16px;
+                min-height: 30px;
             }
 
             QProgressBar::chunk {
@@ -266,26 +266,6 @@ class MCPGui(QMainWindow):
                 height: 0;
             }
 
-            QScrollBar:horizontal {
-                background: #262626;
-                height: 12px;
-                margin: 0;
-            }
-
-            QScrollBar::handle:horizontal {
-                background: #505050;
-                min-width: 24px;
-                border-radius: 6px;
-            }
-
-            QScrollBar::handle:horizontal:hover {
-                background: #6a6a6a;
-            }
-
-            QScrollBar::add-line:horizontal,
-            QScrollBar::sub-line:horizontal {
-                width: 0;
-            }
             """
         )
 
@@ -297,23 +277,6 @@ class MCPGui(QMainWindow):
         main_layout = QVBoxLayout(central)
         main_layout.setContentsMargins(18, 18, 18, 18)
         main_layout.setSpacing(16)
-
-        header = QWidget()
-        header_layout = QVBoxLayout(header)
-        header_layout.setContentsMargins(0, 0, 0, 0)
-        header_layout.setSpacing(4)
-
-        title = QLabel("Painel do darktable MCP")
-        title.setStyleSheet("font-size: 18px; font-weight: 700;")
-        subtitle = QLabel(
-            "Configure a execução do host LLM com parâmetros claros e organizados."
-        )
-        subtitle.setStyleSheet("color: #b7b7b7;")
-
-        header_layout.addWidget(title)
-        header_layout.addWidget(subtitle)
-
-        main_layout.addWidget(header)
 
         content_layout = QHBoxLayout()
         content_layout.setSpacing(16)
@@ -421,7 +384,7 @@ class MCPGui(QMainWindow):
 
         prompt_row_layout.addStretch()
 
-        filter_layout.addRow("Prompt custom:", prompt_row_widget)
+        filter_layout.addRow("Prompt personalizado:", prompt_row_widget)
 
         # Dir export + botão
         target_row_widget = QWidget()
@@ -620,7 +583,7 @@ class MCPGui(QMainWindow):
         self.progress.setRange(0, 1)
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
-        self.progress.setFixedHeight(16)
+        self.progress.setFixedHeight(30)
         self.progress.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
         self.progress.setFixedWidth(200)
 
