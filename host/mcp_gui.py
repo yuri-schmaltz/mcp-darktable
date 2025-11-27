@@ -263,7 +263,7 @@ class MCPGui(QMainWindow):
     # -------------------------- Grupo: Configuração -------------------------
         
         config_group = QGroupBox("Configurações")
-        config_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        config_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         config_layout = QVBoxLayout(config_group)
         config_layout.setContentsMargins(18, 14, 18, 14)
@@ -485,7 +485,7 @@ class MCPGui(QMainWindow):
 
         config_layout.addWidget(llm_group)
 
-        form_column.addWidget(config_group)
+        form_column.addWidget(config_group, stretch=1)
 
     # ------------------------------------ Log -------------------------------
         
