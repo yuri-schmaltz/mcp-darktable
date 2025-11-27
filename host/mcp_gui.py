@@ -66,8 +66,8 @@ class MCPGui(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("darktable MCP - GUI")
-        self.resize(1040, 760)
-        self.setMinimumSize(820, 620)
+        self.resize(1220, 840)
+        self.setMinimumSize(940, 680)
         self._current_thread: Optional[threading.Thread] = None
 
         self.log_signal.connect(self._append_log_ui)
@@ -312,8 +312,31 @@ class MCPGui(QMainWindow):
         self.setCentralWidget(central)
 
         main_layout = QVBoxLayout(central)
-        main_layout.setContentsMargins(16, 16, 16, 16)
-        main_layout.setSpacing(18)
+        main_layout.setContentsMargins(18, 18, 18, 18)
+        main_layout.setSpacing(16)
+
+        header = QWidget()
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(4)
+
+        title = QLabel("Painel do darktable MCP")
+        title.setStyleSheet("font-size: 18px; font-weight: 700;")
+        subtitle = QLabel(
+            "Configure a execução do host LLM com parâmetros claros e organizados."
+        )
+        subtitle.setStyleSheet("color: #b7b7b7;")
+
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
+
+        main_layout.addWidget(header)
+
+        content_layout = QHBoxLayout()
+        content_layout.setSpacing(16)
+
+        form_column = QVBoxLayout()
+        form_column.setSpacing(14)
 
         # ---------------------- Grupo: Parâmetros principais --------------------
         top_group = QGroupBox("Parâmetros principais")
@@ -322,7 +345,7 @@ class MCPGui(QMainWindow):
         top_layout = QFormLayout(top_group)
         top_layout.setContentsMargins(18, 12, 18, 12)
         top_layout.setHorizontalSpacing(14)
-        top_layout.setVerticalSpacing(8)
+        top_layout.setVerticalSpacing(10)
         top_layout.setLabelAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
@@ -358,19 +381,15 @@ class MCPGui(QMainWindow):
         top_layout.addRow("Rating mínimo:", self.min_rating_spin)
         top_layout.addRow("Limite:", self.limit_spin)
 
-        main_layout.addWidget(top_group)
+        form_column.addWidget(top_group)
 
         # -------------------------- Grupo: Filtros e opções ---------------------
         filter_group = QGroupBox("Filtros e opções")
         filter_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-        filter_layout = QFormLayout(filter_group)
+        filter_layout = QVBoxLayout(filter_group)
         filter_layout.setContentsMargins(18, 12, 18, 12)
-        filter_layout.setHorizontalSpacing(14)
-        filter_layout.setVerticalSpacing(8)
-        filter_layout.setLabelAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
+        filter_layout.setSpacing(12)
 
         self.path_contains_edit = QLineEdit()
         self.tag_edit = QLineEdit()
@@ -392,34 +411,41 @@ class MCPGui(QMainWindow):
         ):
             self._style_form_field(w)
 
-        # Linha única com Path / Tag / Coleção
-        ptc_widget = QWidget()
-        ptc_layout = QHBoxLayout(ptc_widget)
-        ptc_layout.setContentsMargins(0, 0, 0, 0)
-        ptc_layout.setSpacing(10)
+        filters_grid = QGridLayout()
+        filters_grid.setHorizontalSpacing(14)
+        filters_grid.setVerticalSpacing(10)
 
-        lbl_path = QLabel("Path:")
-        lbl_tag = QLabel("Tag:")
-        lbl_col = QLabel("Coleção:")
+        filters_grid.addWidget(QLabel("Path:"), 0, 0)
+        filters_grid.addWidget(self.path_contains_edit, 0, 1)
+        filters_grid.addWidget(QLabel("Tag:"), 1, 0)
+        filters_grid.addWidget(self.tag_edit, 1, 1)
+        filters_grid.addWidget(QLabel("Coleção:"), 2, 0)
+        filters_grid.addWidget(self.collection_edit, 2, 1)
 
-        ptc_layout.addWidget(lbl_path)
-        ptc_layout.addWidget(self.path_contains_edit)
-        ptc_layout.addSpacing(6)
-        ptc_layout.addWidget(lbl_tag)
-        ptc_layout.addWidget(self.tag_edit)
-        ptc_layout.addSpacing(6)
-        ptc_layout.addWidget(lbl_col)
-        ptc_layout.addWidget(self.collection_edit)
-        ptc_layout.addStretch()
+        filters_grid.setColumnStretch(1, 1)
 
-        filter_layout.addRow("Filtros:", ptc_widget)
+        filters_container = QWidget()
+        filters_container.setLayout(filters_grid)
+
+        filters_row = QHBoxLayout()
+        filters_row.setContentsMargins(0, 0, 0, 0)
+        filters_row.setSpacing(12)
+
+        filters_label = QLabel("Filtros:")
+        filters_label.setMinimumWidth(120)
+        filters_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
+
+        filters_row.addWidget(filters_label)
+        filters_row.addWidget(filters_container, stretch=1)
+
+        filter_layout.addLayout(filters_row)
 
         # Prompt custom + botões
         prompt_row_widget = QWidget()
         prompt_row_layout = QHBoxLayout(prompt_row_widget)
         prompt_row_layout.setContentsMargins(0, 0, 0, 0)
-        prompt_row_layout.setSpacing(8)
-        prompt_row_layout.addWidget(self.prompt_edit)
+        prompt_row_layout.setSpacing(10)
+        prompt_row_layout.addWidget(self.prompt_edit, stretch=1)
 
         self.prompt_button = QPushButton("Selecionar")
         self._standardize_button(self.prompt_button)
@@ -432,14 +458,24 @@ class MCPGui(QMainWindow):
         prompt_row_layout.addWidget(self.prompt_generate_button)
 
         prompt_row_layout.addStretch()
-        filter_layout.addRow("Prompt custom:", prompt_row_widget)
+
+        prompt_row = QHBoxLayout()
+        prompt_row.setContentsMargins(0, 0, 0, 0)
+        prompt_row.setSpacing(12)
+        prompt_label = QLabel("Prompt custom:")
+        prompt_label.setMinimumWidth(120)
+        prompt_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        prompt_row.addWidget(prompt_label)
+        prompt_row.addWidget(prompt_row_widget, stretch=1)
+
+        filter_layout.addLayout(prompt_row)
 
         # Dir export + botão
         target_row_widget = QWidget()
         target_row_layout = QHBoxLayout(target_row_widget)
         target_row_layout.setContentsMargins(0, 0, 0, 0)
-        target_row_layout.setSpacing(8)
-        target_row_layout.addWidget(self.target_edit)
+        target_row_layout.setSpacing(10)
+        target_row_layout.addWidget(self.target_edit, stretch=1)
 
         self.target_button = QPushButton("Selecionar")
         self._standardize_button(self.target_button)
@@ -450,13 +486,23 @@ class MCPGui(QMainWindow):
         target_row_layout.addWidget(self.target_button)
         target_row_layout.addStretch()
 
-        filter_layout.addRow("Dir export:", target_row_widget)
+        target_row = QHBoxLayout()
+        target_row.setContentsMargins(0, 0, 0, 0)
+        target_row.setSpacing(12)
+        target_label = QLabel("Dir export:")
+        target_label.setMinimumWidth(120)
+        target_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+        target_row.addWidget(target_label)
+        target_row.addWidget(target_row_widget, stretch=1)
+
+        filter_layout.addLayout(target_row)
 
         # Checkboxes (Apenas RAW / Dry-run)
         flags_widget = QWidget()
         flags_layout = QHBoxLayout(flags_widget)
-        flags_layout.setContentsMargins(0, 0, 0, 0)
-        flags_layout.setSpacing(18)
+        flags_layout.setContentsMargins(6, 2, 6, 2)
+        flags_layout.setSpacing(16)
 
         self.only_raw_check = QCheckBox("Apenas RAW")
         self.dry_run_check = QCheckBox("Dry-run")
@@ -472,21 +518,27 @@ class MCPGui(QMainWindow):
         flags_layout.addWidget(self.dry_run_check)
         flags_layout.addStretch()
 
-        filter_layout.addRow("", flags_widget)
+        flags_row = QHBoxLayout()
+        flags_row.setContentsMargins(0, 0, 0, 0)
+        flags_row.setSpacing(12)
+        flags_label = QLabel("Execução:")
+        flags_label.setMinimumWidth(120)
+        flags_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
-        main_layout.addWidget(filter_group)
+        flags_row.addWidget(flags_label)
+        flags_row.addWidget(flags_widget, stretch=1)
+
+        filter_layout.addLayout(flags_row)
+
+        form_column.addWidget(filter_group)
 
         # ------------------------------- Grupo LLM ------------------------------
         llm_group = QGroupBox("LLM")
         llm_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-        llm_layout = QFormLayout(llm_group)
+        llm_layout = QVBoxLayout(llm_group)
         llm_layout.setContentsMargins(18, 12, 18, 12)
-        llm_layout.setHorizontalSpacing(14)
-        llm_layout.setVerticalSpacing(8)
-        llm_layout.setLabelAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
+        llm_layout.setSpacing(12)
 
         self.host_group = QButtonGroup(self)
         self.host_ollama = QRadioButton("Ollama")
@@ -502,12 +554,12 @@ class MCPGui(QMainWindow):
         host_widget = QWidget()
         host_layout = QHBoxLayout(host_widget)
         host_layout.setContentsMargins(0, 0, 0, 0)
-        host_layout.setSpacing(14)
+        host_layout.setSpacing(18)
         host_layout.addWidget(self.host_ollama)
         host_layout.addWidget(self.host_lmstudio)
         host_layout.addStretch()
 
-        llm_layout.addRow("Framework:", host_widget)
+        llm_layout.addWidget(host_widget)
 
         self.model_combo = QComboBox()
         self.model_combo.setEditable(True)
@@ -519,21 +571,21 @@ class MCPGui(QMainWindow):
         self._style_form_field(self.model_combo)
 
         url_model_widget = QWidget()
-        url_model_layout = QHBoxLayout(url_model_widget)
+        url_model_layout = QGridLayout(url_model_widget)
         url_model_layout.setContentsMargins(0, 0, 0, 0)
-        url_model_layout.setSpacing(10)
+        url_model_layout.setHorizontalSpacing(12)
+        url_model_layout.setVerticalSpacing(8)
 
         lbl_url = QLabel("URL:")
         lbl_model = QLabel("Modelo:")
 
-        url_model_layout.addWidget(lbl_url)
-        url_model_layout.addWidget(self.url_edit)
-        url_model_layout.addSpacing(8)
-        url_model_layout.addWidget(lbl_model)
-        url_model_layout.addWidget(self.model_combo)
-        url_model_layout.addStretch()
+        url_model_layout.addWidget(lbl_url, 0, 0)
+        url_model_layout.addWidget(self.url_edit, 0, 1)
+        url_model_layout.addWidget(lbl_model, 1, 0)
+        url_model_layout.addWidget(self.model_combo, 1, 1)
+        url_model_layout.setColumnStretch(1, 1)
 
-        llm_layout.addRow("Servidor:", url_model_widget)
+        llm_layout.addWidget(url_model_widget)
 
         actions_widget = QWidget()
         actions_layout = QHBoxLayout(actions_widget)
@@ -560,9 +612,9 @@ class MCPGui(QMainWindow):
         actions_layout.addWidget(list_button)
         actions_layout.addWidget(check_button)
 
-        llm_layout.addRow("", actions_widget)
+        llm_layout.addWidget(actions_widget)
 
-        main_layout.addWidget(llm_group)
+        form_column.addWidget(llm_group)
 
         # ------------------------------------ Log -------------------------------
         log_group = QGroupBox("Log")
@@ -570,7 +622,7 @@ class MCPGui(QMainWindow):
 
         log_layout = QVBoxLayout(log_group)
         log_layout.setContentsMargins(18, 12, 18, 12)
-        log_layout.setSpacing(10)
+        log_layout.setSpacing(12)
 
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
@@ -587,7 +639,9 @@ class MCPGui(QMainWindow):
         log_layout.addWidget(self.log_text)
         log_layout.addWidget(clear_log, alignment=Qt.AlignmentFlag.AlignRight)
 
-        main_layout.addWidget(log_group, stretch=1)
+        right_column = QVBoxLayout()
+        right_column.setSpacing(14)
+        right_column.addWidget(log_group, stretch=1)
 
         # ----------------------------- Botão principal --------------------------
         self.run_button = QPushButton("Executar host")
@@ -600,18 +654,23 @@ class MCPGui(QMainWindow):
 
         self._standardize_button(self.run_button)
         # deixar ele um pouco mais largo que os demais
-        self.run_button.setMinimumWidth(170)
+        self.run_button.setMinimumWidth(180)
 
         self.run_button.setToolTip("Inicia o host com os parâmetros configurados")
         self.run_button.clicked.connect(self.run_host)
 
         run_row = QHBoxLayout()
-        run_row.setContentsMargins(0, 16, 0, 4)
+        run_row.setContentsMargins(0, 6, 0, 0)
         run_row.setSpacing(12)
         run_row.addStretch()
         run_row.addWidget(self.run_button)
 
-        main_layout.addLayout(run_row)
+        right_column.addLayout(run_row)
+
+        content_layout.addLayout(form_column, stretch=2)
+        content_layout.addLayout(right_column, stretch=3)
+
+        main_layout.addLayout(content_layout)
 
         self._build_status_bar()
 
