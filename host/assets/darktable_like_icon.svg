@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f76c5e" />
+      <stop offset="100%" stop-color="#d72638" />
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f9a03f" />
+      <stop offset="100%" stop-color="#f15c22" />
+    </linearGradient>
+    <linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffd166" />
+      <stop offset="100%" stop-color="#f2c14e" />
+    </linearGradient>
+    <linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#70c1b3" />
+      <stop offset="100%" stop-color="#3fb4c2" />
+    </linearGradient>
+    <linearGradient id="g5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ecdc4" />
+      <stop offset="100%" stop-color="#3aafb9" />
+    </linearGradient>
+    <linearGradient id="g6" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9b6ef3" />
+      <stop offset="100%" stop-color="#6c63ff" />
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="232" fill="#111" />
+  <g transform="translate(256 256)">
+    <path d="M0 0 L0 -210 A210 210 0 0 1 182 -105 Z" fill="url(#g1)" />
+    <path d="M0 0 L182 -105 A210 210 0 0 1 182 105 Z" fill="url(#g2)" />
+    <path d="M0 0 L182 105 A210 210 0 0 1 0 210 Z" fill="url(#g3)" />
+    <path d="M0 0 L0 210 A210 210 0 0 1 -182 105 Z" fill="url(#g4)" />
+    <path d="M0 0 L-182 105 A210 210 0 0 1 -182 -105 Z" fill="url(#g5)" />
+    <path d="M0 0 L-182 -105 A210 210 0 0 1 0 -210 Z" fill="url(#g6)" />
+  </g>
+  <circle cx="256" cy="256" r="76" fill="#1a1a1a" stroke="#0c0c0c" stroke-width="6" />
+</svg>
