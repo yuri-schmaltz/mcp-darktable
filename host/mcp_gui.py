@@ -148,7 +148,7 @@ class MCPGui(QMainWindow):
                 min-height: 30px;
                 border: 1px solid #555555;
                 border-radius: 4px;
-                background-color: transparent;
+                background-color: #363636;
                 selection-background-color: #77a0ff;
                 selection-color: #ffffff;
             }
@@ -163,7 +163,7 @@ class MCPGui(QMainWindow):
             QLineEdit:disabled,
             QComboBox:disabled,
             QSpinBox:disabled {
-                background-color: transparent;
+                background-color: #2c2c2c;
                 color: #888888;
                 border-color: #3a3a3a;
             }
@@ -177,44 +177,43 @@ class MCPGui(QMainWindow):
             QPushButton {
                 padding: 6px 14px;
                 min-height: 30px;
-                background-color: transparent;
+                background-color: #3b3b3b;
                 border: 1px solid #555555;
                 border-radius: 6px;
                 color: #f0f0f0;
             }
 
             QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.08);
+                background-color: #4a4a4a;
             }
 
             QPushButton:pressed {
-                background-color: rgba(255, 255, 255, 0.04);
+                background-color: #333333;
             }
 
             QPushButton:disabled {
-                background-color: transparent;
+                background-color: #2a2a2a;
                 color: #777777;
                 border-color: #333333;
             }
 
             /* BOTÃO PRINCIPAL ----------------------------------------- */
             QPushButton#primaryButton {
-                background-color: transparent;
+                background-color: #336dff;
                 border-color: #4e82ff;
-                color: #b9cbff;
                 font-weight: 600;
             }
 
             QPushButton#primaryButton:hover {
-                background-color: rgba(78, 130, 255, 0.12);
+                background-color: #3f7dff;
             }
 
             QPushButton#primaryButton:pressed {
-                background-color: rgba(41, 95, 219, 0.18);
+                background-color: #295fdb;
             }
 
             QPushButton#primaryButton:disabled {
-                background-color: transparent;
+                background-color: #2a2a2a;
                 border-color: #333333;
                 color: #777777;
                 font-weight: 500;
