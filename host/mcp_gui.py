@@ -112,6 +112,7 @@ class MCPGui(QMainWindow):
 
             QLabel {
                 color: #f2f2f2;
+                background-color: transparent;
             }
 
             QToolTip {
@@ -144,7 +145,7 @@ class MCPGui(QMainWindow):
             QSpinBox,
             QTextEdit {
                 padding: 4.5px 6px;
-                min-height: 21px;
+                min-height: 30px;
                 border: 1px solid #555555;
                 border-radius: 4px;
                 background-color: #363636;
@@ -221,8 +222,8 @@ class MCPGui(QMainWindow):
             /* CHECKBOX / RADIO ---------------------------------------- */
             QCheckBox,
             QRadioButton {
-                spacing: 6px;
-                min-height: 22px;
+                spacing: 24px;
+                min-height: 25px;
             }
 
             /* STATUSBAR / PROGRESS ------------------------------------ */
@@ -243,29 +244,6 @@ class MCPGui(QMainWindow):
                 border-radius: 3px;
                 background-color: #77a0ff;
             }
-
-            /* SCROLLBARS ---------------------------------------------- */
-            QScrollBar:vertical {
-                background: #262626;
-                width: 12px;
-                margin: 0;
-            }
-
-            QScrollBar::handle:vertical {
-                background: #505050;
-                min-height: 24px;
-                border-radius: 6px;
-            }
-
-            QScrollBar::handle:vertical:hover {
-                background: #6a6a6a;
-            }
-
-            QScrollBar::add-line:vertical,
-            QScrollBar::sub-line:vertical {
-                height: 0;
-            }
-
             """
         )
 
@@ -290,7 +268,7 @@ class MCPGui(QMainWindow):
 
         top_layout = QFormLayout(top_group)
         top_layout.setContentsMargins(18, 12, 18, 12)
-        top_layout.setHorizontalSpacing(14)
+        top_layout.setHorizontalSpacing(15)
         top_layout.setVerticalSpacing(10)
         top_layout.setLabelAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -333,10 +311,12 @@ class MCPGui(QMainWindow):
         filter_group = QGroupBox("Filtros e opções")
         filter_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
+        # Mantém o mesmo padrão de margens e espaçamentos do grupo
+        # "Parâmetros principais" para ter linhas e alturas consistentes.
         filter_layout = QFormLayout(filter_group)
         filter_layout.setContentsMargins(18, 12, 18, 12)
-        filter_layout.setHorizontalSpacing(14)
-        filter_layout.setVerticalSpacing(10)
+        filter_layout.setHorizontalSpacing(15)
+        filter_layout.setVerticalSpacing(10)  # era 30
         filter_layout.setLabelAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
@@ -407,7 +387,8 @@ class MCPGui(QMainWindow):
         # Checkboxes (Apenas RAW / Dry-run)
         flags_widget = QWidget()
         flags_layout = QHBoxLayout(flags_widget)
-        flags_layout.setContentsMargins(6, 2, 6, 2)
+        # mesmas margens dos outros rows (prompt/dir export)
+        flags_layout.setContentsMargins(0, 0, 0, 0)
         flags_layout.setSpacing(16)
 
         self.only_raw_check = QCheckBox("Apenas RAW")
@@ -434,7 +415,7 @@ class MCPGui(QMainWindow):
 
         llm_layout = QVBoxLayout(llm_group)
         llm_layout.setContentsMargins(18, 12, 18, 12)
-        llm_layout.setSpacing(12)
+        llm_layout.setSpacing(15)
 
         self.host_group = QButtonGroup(self)
         self.host_ollama = QRadioButton("Ollama")
@@ -450,7 +431,7 @@ class MCPGui(QMainWindow):
         host_widget = QWidget()
         host_layout = QHBoxLayout(host_widget)
         host_layout.setContentsMargins(0, 0, 0, 0)
-        host_layout.setSpacing(18)
+        host_layout.setSpacing(22)
         host_layout.addWidget(self.host_ollama)
         host_layout.addWidget(self.host_lmstudio)
         host_layout.addStretch()
@@ -469,7 +450,7 @@ class MCPGui(QMainWindow):
         llm_form = QFormLayout()
         llm_form.setContentsMargins(0, 0, 0, 0)
         llm_form.setHorizontalSpacing(12)
-        llm_form.setVerticalSpacing(10)
+        llm_form.setVerticalSpacing(5)
         llm_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         llm_form.addRow("URL:", self.url_edit)
         llm_form.addRow("Modelo:", self.model_combo)
