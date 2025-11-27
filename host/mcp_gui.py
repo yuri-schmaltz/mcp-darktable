@@ -100,11 +100,9 @@ class MCPGui(QMainWindow):
         self.setStyleSheet(
             """
             /* BASE ----------------------------------------------------- */
-            QCheckBox,
-            QRadioButton {
-                spacing: 24px;
-                min-height: 25px;
-                background-color: transparent;   /* <- isso remove a “barra” escura */
+            QWidget {
+                font-size: 13px;
+                color: #f2f2f2;
             }
 
             QMainWindow {
