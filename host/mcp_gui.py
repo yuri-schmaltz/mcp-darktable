@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 import requests
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -68,6 +68,7 @@ class MCPGui(QMainWindow):
         self.setWindowTitle("darktable MCP - GUI")
         self.resize(1220, 840)
         self.setMinimumSize(940, 680)
+        self._apply_window_icon()
         self._current_thread: Optional[threading.Thread] = None
 
         self.log_signal.connect(self._append_log_ui)
@@ -83,6 +84,17 @@ class MCPGui(QMainWindow):
         self._connect_dynamic_behaviors()
 
     # --------------------------------------------------------------------- UI --
+
+    def _apply_window_icon(self) -> None:
+        """Define o ícone da janela e da aplicação (barra de título e tarefas)."""
+
+        icon_path = Path(__file__).parent / "assets" / "darktable_like_icon.svg"
+        if not icon_path.exists():
+            return
+
+        icon = QIcon(str(icon_path))
+        QApplication.setWindowIcon(icon)
+        self.setWindowIcon(icon)
 
     def _apply_global_style(self) -> None:
         """Tema dark consistente e componentes padronizados."""
