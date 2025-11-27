@@ -298,23 +298,6 @@ class MCPGui(QMainWindow):
         main_layout.setContentsMargins(18, 18, 18, 18)
         main_layout.setSpacing(16)
 
-        header = QWidget()
-        header_layout = QVBoxLayout(header)
-        header_layout.setContentsMargins(0, 0, 0, 0)
-        header_layout.setSpacing(4)
-
-        title = QLabel("Painel do darktable MCP")
-        title.setStyleSheet("font-size: 18px; font-weight: 700;")
-        subtitle = QLabel(
-            "Configure a execução do host LLM com parâmetros claros e organizados."
-        )
-        subtitle.setStyleSheet("color: #b7b7b7;")
-
-        header_layout.addWidget(title)
-        header_layout.addWidget(subtitle)
-
-        main_layout.addWidget(header)
-
         content_layout = QHBoxLayout()
         content_layout.setSpacing(16)
 
@@ -370,11 +353,19 @@ class MCPGui(QMainWindow):
         filter_group = QGroupBox("Filtros e opções")
         filter_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-        filter_layout = QFormLayout(filter_group)
+        filter_layout = QVBoxLayout(filter_group)
         filter_layout.setContentsMargins(18, 12, 18, 12)
-        filter_layout.setHorizontalSpacing(14)
-        filter_layout.setVerticalSpacing(10)
-        filter_layout.setLabelAlignment(
+        filter_layout.setSpacing(12)
+
+        filters_row = QHBoxLayout()
+        filters_row.setContentsMargins(0, 0, 0, 0)
+        filters_row.setSpacing(22)
+
+        left_filters = QFormLayout()
+        left_filters.setContentsMargins(0, 0, 0, 0)
+        left_filters.setHorizontalSpacing(14)
+        left_filters.setVerticalSpacing(12)
+        left_filters.setLabelAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
 
@@ -398,9 +389,17 @@ class MCPGui(QMainWindow):
         ):
             self._style_form_field(w)
 
-        filter_layout.addRow("Path contém:", self.path_contains_edit)
-        filter_layout.addRow("Tag:", self.tag_edit)
-        filter_layout.addRow("Coleção:", self.collection_edit)
+        left_filters.addRow("Path contém:", self.path_contains_edit)
+        left_filters.addRow("Tag:", self.tag_edit)
+        left_filters.addRow("Coleção:", self.collection_edit)
+
+        right_filters = QFormLayout()
+        right_filters.setContentsMargins(0, 0, 0, 0)
+        right_filters.setHorizontalSpacing(14)
+        right_filters.setVerticalSpacing(12)
+        right_filters.setLabelAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
 
         # Prompt custom + botões
         prompt_row_widget = QWidget()
@@ -421,7 +420,7 @@ class MCPGui(QMainWindow):
 
         prompt_row_layout.addStretch()
 
-        filter_layout.addRow("Prompt custom:", prompt_row_widget)
+        right_filters.addRow("Prompt custom:", prompt_row_widget)
 
         # Dir export + botão
         target_row_widget = QWidget()
@@ -439,7 +438,11 @@ class MCPGui(QMainWindow):
         target_row_layout.addWidget(self.target_button)
         target_row_layout.addStretch()
 
-        filter_layout.addRow("Dir export:", target_row_widget)
+        right_filters.addRow("Dir export:", target_row_widget)
+
+        filters_row.addLayout(left_filters, stretch=1)
+        filters_row.addLayout(right_filters, stretch=1)
+        filter_layout.addLayout(filters_row)
 
         # Checkboxes (Apenas RAW / Dry-run)
         flags_widget = QWidget()
@@ -461,7 +464,15 @@ class MCPGui(QMainWindow):
         flags_layout.addWidget(self.dry_run_check)
         flags_layout.addStretch()
 
-        filter_layout.addRow("Execução:", flags_widget)
+        flags_row = QFormLayout()
+        flags_row.setContentsMargins(0, 0, 0, 0)
+        flags_row.setHorizontalSpacing(14)
+        flags_row.setLabelAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        flags_row.addRow("Execução:", flags_widget)
+
+        filter_layout.addLayout(flags_row)
 
         form_column.addWidget(filter_group)
 
