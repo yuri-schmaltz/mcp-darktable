@@ -262,14 +262,18 @@ class MCPGui(QMainWindow):
         form_column = QVBoxLayout()
         form_column.setSpacing(14)
 
-        # ---------------------- Grupo: Parâmetros principais --------------------
-        top_group = QGroupBox("Parâmetros principais")
-        top_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        # -------------------------- Grupo: Configuração -------------------------
+        config_group = QGroupBox("Configuração")
+        config_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-        top_layout = QFormLayout(top_group)
-        top_layout.setContentsMargins(18, 12, 18, 12)
-        top_layout.setHorizontalSpacing(15)
-        top_layout.setVerticalSpacing(10)
+        config_layout = QVBoxLayout(config_group)
+        config_layout.setContentsMargins(18, 14, 18, 14)
+        config_layout.setSpacing(16)
+
+        top_layout = QFormLayout()
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setHorizontalSpacing(16)
+        top_layout.setVerticalSpacing(12)
         top_layout.setLabelAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
@@ -305,18 +309,14 @@ class MCPGui(QMainWindow):
         top_layout.addRow("Rating mínimo:", self.min_rating_spin)
         top_layout.addRow("Limite:", self.limit_spin)
 
-        form_column.addWidget(top_group)
+        config_layout.addWidget(self._section_title("Parâmetros principais"))
+        config_layout.addLayout(top_layout)
 
-        # -------------------------- Grupo: Filtros e opções ---------------------
-        filter_group = QGroupBox("Filtros e opções")
-        filter_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-
-        # Mantém o mesmo padrão de margens e espaçamentos do grupo
-        # "Parâmetros principais" para ter linhas e alturas consistentes.
-        filter_layout = QFormLayout(filter_group)
-        filter_layout.setContentsMargins(18, 12, 18, 12)
-        filter_layout.setHorizontalSpacing(15)
-        filter_layout.setVerticalSpacing(10)  # era 30
+        # -------------------------- Seção: Filtros e opções ---------------------
+        filter_layout = QFormLayout()
+        filter_layout.setContentsMargins(0, 0, 0, 0)
+        filter_layout.setHorizontalSpacing(16)
+        filter_layout.setVerticalSpacing(12)
         filter_layout.setLabelAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
@@ -349,7 +349,7 @@ class MCPGui(QMainWindow):
         prompt_row_widget = QWidget()
         prompt_row_layout = QHBoxLayout(prompt_row_widget)
         prompt_row_layout.setContentsMargins(0, 0, 0, 0)
-        prompt_row_layout.setSpacing(10)
+        prompt_row_layout.setSpacing(12)
         prompt_row_layout.addWidget(self.prompt_edit, stretch=1)
 
         self.prompt_button = QPushButton("Selecionar")
@@ -370,7 +370,7 @@ class MCPGui(QMainWindow):
         target_row_widget = QWidget()
         target_row_layout = QHBoxLayout(target_row_widget)
         target_row_layout.setContentsMargins(0, 0, 0, 0)
-        target_row_layout.setSpacing(10)
+        target_row_layout.setSpacing(12)
         target_row_layout.addWidget(self.target_edit, stretch=1)
 
         self.target_button = QPushButton("Selecionar")
@@ -407,15 +407,16 @@ class MCPGui(QMainWindow):
 
         filter_layout.addRow("Execução:", flags_widget)
 
-        form_column.addWidget(filter_group)
+        config_layout.addWidget(self._section_title("Filtros e opções"))
+        config_layout.addLayout(filter_layout)
 
-        # ------------------------------- Grupo LLM ------------------------------
-        llm_group = QGroupBox("LLM")
-        llm_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        # ------------------------------- Seção LLM ------------------------------
+        llm_group = QGroupBox()
+        llm_group.setFlat(True)
 
         llm_layout = QVBoxLayout(llm_group)
-        llm_layout.setContentsMargins(18, 12, 18, 12)
-        llm_layout.setSpacing(15)
+        llm_layout.setContentsMargins(0, 0, 0, 0)
+        llm_layout.setSpacing(12)
 
         self.host_group = QButtonGroup(self)
         self.host_ollama = QRadioButton("Ollama")
@@ -431,7 +432,7 @@ class MCPGui(QMainWindow):
         host_widget = QWidget()
         host_layout = QHBoxLayout(host_widget)
         host_layout.setContentsMargins(0, 0, 0, 0)
-        host_layout.setSpacing(22)
+        host_layout.setSpacing(18)
         host_layout.addWidget(self.host_ollama)
         host_layout.addWidget(self.host_lmstudio)
         host_layout.addStretch()
@@ -450,14 +451,14 @@ class MCPGui(QMainWindow):
         actions_widget = QWidget()
         actions_layout = QHBoxLayout(actions_widget)
         actions_layout.setContentsMargins(0, 4, 0, 0)
-        actions_layout.setSpacing(10)
+        actions_layout.setSpacing(12)
 
         list_button = QPushButton()
         list_button.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)
         )
         list_button.setToolTip("Listar modelos")
-        list_button.setFixedSize(44, 34)
+        list_button.setFixedSize(40, 32)
         list_button.clicked.connect(self.list_models)
 
         check_button = QPushButton()
@@ -465,7 +466,7 @@ class MCPGui(QMainWindow):
             self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
         )
         check_button.setToolTip("Verificar conectividade")
-        check_button.setFixedSize(44, 34)
+        check_button.setFixedSize(40, 32)
         check_button.clicked.connect(self.check_connectivity)
 
         actions_layout.addWidget(list_button)
@@ -474,21 +475,24 @@ class MCPGui(QMainWindow):
         model_row_widget = QWidget()
         model_row_layout = QHBoxLayout(model_row_widget)
         model_row_layout.setContentsMargins(0, 0, 0, 0)
-        model_row_layout.setSpacing(10)
+        model_row_layout.setSpacing(12)
         model_row_layout.addWidget(self.model_combo, stretch=1)
         model_row_layout.addWidget(actions_widget)
 
         llm_form = QFormLayout()
         llm_form.setContentsMargins(0, 0, 0, 0)
-        llm_form.setHorizontalSpacing(12)
-        llm_form.setVerticalSpacing(5)
+        llm_form.setHorizontalSpacing(14)
+        llm_form.setVerticalSpacing(10)
         llm_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         llm_form.addRow("URL:", self.url_edit)
         llm_form.addRow("Modelo:", model_row_widget)
 
         llm_layout.addLayout(llm_form)
 
-        form_column.addWidget(llm_group)
+        config_layout.addWidget(self._section_title("LLM"))
+        config_layout.addWidget(llm_group)
+
+        form_column.addWidget(config_group)
 
         # ------------------------------------ Log -------------------------------
         log_group = QGroupBox("Log")
@@ -618,14 +622,21 @@ class MCPGui(QMainWindow):
         QMessageBox.about(self, "Sobre o aplicativo", about_text)
 
     def _standardize_button(self, button: QPushButton) -> None:
-        button.setMinimumWidth(120)
+        button.setMinimumWidth(130)
+        button.setMinimumHeight(32)
         button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+    def _section_title(self, text: str) -> QLabel:
+        title = QLabel(text)
+        title.setStyleSheet("font-weight: 600; margin-top: 4px; margin-bottom: 2px;")
+        title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        return title
 
     def _style_form_field(self, widget: QWidget) -> None:
         """Padroniza campos de formulário para largura e altura consistentes."""
 
-        widget.setMinimumWidth(220)
-        widget.setMinimumHeight(30)
+        widget.setMinimumWidth(260)
+        widget.setMinimumHeight(32)
         widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
     # ----------------------------------------------------------------- Defaults --
