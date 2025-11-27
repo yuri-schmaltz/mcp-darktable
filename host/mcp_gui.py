@@ -520,6 +520,7 @@ class MCPGui(QMainWindow):
         right_column.addWidget(log_group, stretch=1)
 
         # ----------------------------- Botão principal --------------------------
+        
         self.run_button = QPushButton("Executar host")
         # marcar como botão principal para o stylesheet
         self.run_button.setObjectName("primaryButton")
@@ -528,9 +529,9 @@ class MCPGui(QMainWindow):
             self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
         )
 
-        self._standardize_button(self.run_button)
-        # deixar ele um pouco mais largo que os demais
-        self.run_button.setMinimumWidth(180)
+        # botão ocupa toda a largura disponível na coluna da direita
+        self.run_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.run_button.setMinimumWidth(0)
 
         self.run_button.setToolTip("Inicia o host com os parâmetros configurados")
         self.run_button.clicked.connect(self.run_host)
@@ -538,7 +539,7 @@ class MCPGui(QMainWindow):
         run_row = QHBoxLayout()
         run_row.setContentsMargins(0, 6, 0, 0)
         run_row.setSpacing(12)
-        run_row.addStretch()
+        # sem addStretch(): o botão pega toda a linha
         run_row.addWidget(self.run_button)
 
         right_column.addLayout(run_row)
@@ -550,55 +551,31 @@ class MCPGui(QMainWindow):
 
         self._build_status_bar()
 
-
+        # ----------------------------- Barra de Status --------------------------
+        
     def _build_status_bar(self) -> None:
         status_bar = QStatusBar()
         status_bar.setSizeGripEnabled(False)
         status_bar.setContentsMargins(8, 0, 8, 0)
 
         self.status_label = QLabel("Pronto para configurar a execução.")
-        self.status_label.setMinimumWidth(260)
-        self.status_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.status_label.setMinimumWidth(0)
+        self.status_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
 
         self.progress = QProgressBar()
         self.progress.setRange(0, 1)
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
         self.progress.setFixedHeight(30)
-        self.progress.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
-        self.progress.setFixedWidth(200)
+        self.progress.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
-        status_bar.addWidget(self.status_label, 1)
-        status_bar.addPermanentWidget(self.progress)
+        status_bar.addWidget(self.status_label)
+        status_bar.addPermanentWidget(self.progress, 1)
         self.setStatusBar(status_bar)
 
-    def _style_form_field(self, widget: QWidget) -> None:
-        widget.setMinimumWidth(260)
-        widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-
-    def _add_form_row(
-        self,
-        layout: QGridLayout,
-        row: int,
-        label_text: str,
-        widget: QWidget,
-    ) -> QHBoxLayout:
-        label = QLabel(label_text)
-        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        label.setMinimumWidth(120)
-
-        self._style_form_field(widget)
-
-        widget_layout = QHBoxLayout()
-        widget_layout.setSpacing(10)
-        widget_layout.addWidget(widget)
-
-        layout.addWidget(label, row, 0)
-        layout.addLayout(widget_layout, row, 1)
-
-        return widget_layout
 
     # ------------------------------ MENUS DE AJUDA -----------------------------
+    
     def _show_help_manual(self) -> None:
         manual_text = (
             """
