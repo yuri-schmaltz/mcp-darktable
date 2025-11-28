@@ -433,15 +433,18 @@ class MCPGui(QMainWindow):
         actions_widget = QWidget()
         actions_layout = QHBoxLayout(actions_widget)
         actions_layout.setContentsMargins(0, 0, 0, 0)
-        actions_layout.setSpacing(12)
+        actions_layout.setSpacing(8)
         actions_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+
+        # Usa a mesma altura do combo de modelo para alinhar visualmente
+        combo_h = self.model_combo.sizeHint().height()
 
         list_button = QPushButton()
         list_button.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)
         )
         list_button.setToolTip("Listar modelos")
-        list_button.setFixedSize(40, 32)
+        list_button.setFixedSize(combo_h, combo_h)
         list_button.clicked.connect(self.list_models)
 
         check_button = QPushButton()
@@ -449,8 +452,9 @@ class MCPGui(QMainWindow):
             self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
         )
         check_button.setToolTip("Verificar conectividade")
-        check_button.setFixedSize(40, 32)
+        check_button.setFixedSize(combo_h, combo_h)
         check_button.clicked.connect(self.check_connectivity)
+
 
         actions_layout.addWidget(list_button)
         actions_layout.addWidget(check_button)
@@ -459,9 +463,20 @@ class MCPGui(QMainWindow):
         model_row_layout = QHBoxLayout(model_row_widget)
         model_row_layout.setContentsMargins(0, 0, 0, 0)
         model_row_layout.setSpacing(12)
-        model_row_layout.addWidget(self.model_combo, stretch=1)
-        model_row_layout.addWidget(actions_widget)
-        model_row_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        
+        # combo ocupa o espaço, mas alinhado verticalmente ao centro
+        model_row_layout.addWidget(
+            self.model_combo,
+            1,
+            Qt.AlignmentFlag.AlignVCenter,
+        )      
+        
+        # bloco dos botões também alinhado ao centro vertical
+        model_row_layout.addWidget(
+            actions_widget,
+            0,
+            Qt.AlignmentFlag.AlignVCenter,
+        )
 
         # LLM na mesma coluna do restante
         config_form.addRow("Framework:", host_widget)
