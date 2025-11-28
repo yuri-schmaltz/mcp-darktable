@@ -14,6 +14,120 @@
 local json   = require "dkjson"
 local package = require "package"
 
+local function command_exists(cmd)
+  local check_cmd = string.format("command -v %s >/dev/null 2>&1", cmd)
+  local result = os.execute(check_cmd)
+  if type(result) == "number" then
+    return result == 0
+  end
+  return result == true
+end
+
+local function file_exists(path)
+  local f = io.open(path, "r")
+  if f then
+    f:close()
+    return true
+  end
+  return false
+end
+
+local function dir_exists(path)
+  local ok, _, code = os.rename(path, path)
+  if ok then return true end
+  return code == 13
+end
+
+local function detect_darktable_paths()
+  local home = os.getenv("HOME") or ""
+
+  local function add_candidate(list, prefix, source)
+    if prefix and prefix ~= "" then
+      table.insert(list, { prefix = prefix, source = source })
+    end
+  end
+
+  local candidates = {}
+  add_candidate(candidates, os.getenv("DARKTABLE_PREFIX"), "env:DARKTABLE_PREFIX")
+  add_candidate(candidates, os.getenv("DARKTABLE_FLATPAK_PREFIX"), "env:DARKTABLE_FLATPAK_PREFIX")
+  if home ~= "" then
+    add_candidate(
+      candidates,
+      home .. "/.local/share/flatpak/app/org.darktable.Darktable/current/active/files",
+      "flatpak:user"
+    )
+  end
+  add_candidate(candidates, "/var/lib/flatpak/app/org.darktable.Darktable/current/active/files", "flatpak:system")
+  add_candidate(candidates, "/usr", "default:/usr")
+  add_candidate(candidates, "/usr/local", "default:/usr/local")
+
+  local function pick_prefix()
+    for _, item in ipairs(candidates) do
+      local prefix = item.prefix
+      local lib_candidates = {
+        prefix .. "/lib/libdarktable.so",
+        prefix .. "/lib64/libdarktable.so",
+        prefix .. "/lib/darktable/libdarktable.so",
+        prefix .. "/lib64/darktable/libdarktable.so",
+      }
+      for _, lib_path in ipairs(lib_candidates) do
+        if file_exists(lib_path) then
+          return item, lib_path
+        end
+      end
+    end
+    return nil, nil
+  end
+
+  local chosen, lib_path = pick_prefix()
+  if not chosen then
+    return {
+      prefix    = "/usr",
+      source    = "fallback",
+      is_flatpak = false,
+      lib_path  = "/usr/lib/darktable/libdarktable.so",
+      datadir   = "/usr/share/darktable",
+      moduledir = "/usr/lib/darktable",
+      cpaths    = { "/usr/lib/darktable/lib?.so" }
+    }
+  end
+
+  local moduledir = chosen.prefix .. "/lib/darktable"
+  if dir_exists(chosen.prefix .. "/lib64/darktable") then
+    moduledir = chosen.prefix .. "/lib64/darktable"
+  end
+
+  local cpaths = {
+    chosen.prefix .. "/lib/?.so",
+    chosen.prefix .. "/lib64/?.so",
+    chosen.prefix .. "/lib/darktable/?.so",
+    chosen.prefix .. "/lib64/darktable/?.so",
+  }
+
+  return {
+    prefix     = chosen.prefix,
+    source     = chosen.source,
+    is_flatpak = chosen.source:find("flatpak", 1, true) ~= nil,
+    lib_path   = lib_path,
+    datadir    = chosen.prefix .. "/share/darktable",
+    moduledir  = moduledir,
+    cpaths     = cpaths,
+  }
+end
+
+local dt_paths = detect_darktable_paths()
+
+for _, p in ipairs(dt_paths.cpaths) do
+  package.cpath = package.cpath .. ";" .. p
+end
+
+io.stderr:write(string.format(
+  "[init] darktable prefix=%s source=%s lib=%s\n",
+  tostring(dt_paths.prefix),
+  tostring(dt_paths.source),
+  tostring(dt_paths.lib_path)
+))
+
 local function mcp_error(message, code, field, extra)
   local json_error = {
     code    = code or "validation_error",
@@ -44,15 +158,38 @@ local PROTOCOL_VERSION = "2024-11-05"
 
 -- Ajuste esse caminho conforme sua distro:
 -- Ex: /usr/lib/darktable/libdarktable.so
-package.cpath = package.cpath .. ";/usr/lib/darktable/lib?.so"
-
 local dt = require("darktable")(
   "--library",   os.getenv("HOME") .. "/.config/darktable/library.db",
-  "--datadir",   "/usr/share/darktable",
-  "--moduledir", "/usr/lib/darktable",
+  "--datadir",   dt_paths.datadir,
+  "--moduledir", dt_paths.moduledir,
   "--configdir", os.getenv("HOME") .. "/.config/darktable",
   "--cachedir",  os.getenv("HOME") .. "/.cache/darktable"
 )
+
+local function select_darktable_cli()
+  local override = os.getenv("DARKTABLE_CLI_CMD")
+  if override and override ~= "" then
+    return override, "env:DARKTABLE_CLI_CMD"
+  end
+
+  if command_exists("darktable-cli") then
+    return "darktable-cli", "PATH"
+  end
+
+  if dt_paths.is_flatpak and command_exists("flatpak") then
+    return "flatpak run --command=darktable-cli org.darktable.Darktable", "flatpak"
+  end
+
+  return nil, "missing"
+end
+
+local DARKTABLE_CLI_CMD, DARKTABLE_CLI_SOURCE = select_darktable_cli()
+
+io.stderr:write(string.format(
+  "[init] darktable-cli source=%s cmd=%s\n",
+  tostring(DARKTABLE_CLI_SOURCE),
+  tostring(DARKTABLE_CLI_CMD)
+))
 
 --------------------------------------------------
 -- 2. Helpers JSON-RPC / MCP
@@ -102,15 +239,6 @@ local function image_to_metadata(img)
     is_raw     = img.is_raw,
     colorlabels = safe_colorlabels(img),
   }
-end
-
-local function command_exists(cmd)
-  local check_cmd = string.format("command -v %s >/dev/null 2>&1", cmd)
-  local result = os.execute(check_cmd)
-  if type(result) == "number" then
-    return result == 0
-  end
-  return result == true
 end
 
 local function escape_format(s)
@@ -521,9 +649,14 @@ local function tool_export_collection(args)
     )
   end
 
-  if not command_exists("darktable-cli") then
+  if not DARKTABLE_CLI_CMD then
     return {
-      content = { { type = "text", text = "darktable-cli não encontrado no PATH" } },
+      content = {
+        {
+          type = "text",
+          text = "darktable-cli não encontrado (PATH ou flatpak); defina DARKTABLE_CLI_CMD para sobrescrever",
+        }
+      },
       isError = true
     }
   end
@@ -582,7 +715,7 @@ local function tool_export_collection(args)
     end
 
     -- comando simples; ajuste flags conforme sua necessidade
-      local cmd = string.format('darktable-cli "%s" "%s"', escape_format(input), out)
+    local cmd = string.format('%s "%s" "%s"', DARKTABLE_CLI_CMD, escape_format(input), out)
     local success, exit_code, stderr_output, exit_reason = run_command_capture(cmd)
 
     if success then
