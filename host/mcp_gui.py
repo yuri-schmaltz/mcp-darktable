@@ -474,8 +474,8 @@ class MCPGui(QMainWindow):
 
         llm_form = QFormLayout()
         llm_form.setContentsMargins(0, 0, 0, 0)
-        llm_form.setHorizontalSpacing(16)
-        llm_form.setVerticalSpacing(12)
+        llm_form.setHorizontalSpacing(14)
+        llm_form.setVerticalSpacing(10)
         llm_form.setFormAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
