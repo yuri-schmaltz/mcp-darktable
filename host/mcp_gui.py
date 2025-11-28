@@ -364,12 +364,12 @@ class MCPGui(QMainWindow):
         prompt_row_layout.addWidget(self.prompt_edit, stretch=1)
 
         self.prompt_button = QPushButton("Selecionar")
-        self._standardize_button(self.prompt_button)
+        self._standardize_button(self.prompt_button, width=78)
         self.prompt_button.clicked.connect(self._choose_prompt_file)
         prompt_row_layout.addWidget(self.prompt_button)
 
         self.prompt_generate_button = QPushButton("Gerar modelo")
-        self._standardize_button(self.prompt_generate_button)
+        self._standardize_button(self.prompt_generate_button, width=78)
         self.prompt_generate_button.clicked.connect(self._generate_prompt_template)
         prompt_row_layout.addWidget(self.prompt_generate_button)
 
@@ -384,7 +384,7 @@ class MCPGui(QMainWindow):
         target_row_layout.addWidget(self.target_edit, stretch=1)
 
         self.target_button = QPushButton("Selecionar")
-        self._standardize_button(self.target_button)
+        self._standardize_button(self.target_button, width=78)
         self.target_button.clicked.connect(self._choose_target_dir)
         self.target_button.setToolTip(
             "Seleciona a pasta onde os arquivos exportados serão gravados"
@@ -673,8 +673,8 @@ class MCPGui(QMainWindow):
                 self._set_current_image_preview(candidate)
                 return
 
-    def _standardize_button(self, button: QPushButton) -> None:
-        button.setMinimumWidth(130)
+    def _standardize_button(self, button: QPushButton, *, width: int = 130) -> None:
+        button.setMinimumWidth(width)
         button.setMinimumHeight(32)
         button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
