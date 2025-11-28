@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import mimetypes
+import os
 import shutil
 import subprocess
 import time
@@ -89,14 +90,56 @@ def _ensure_paths() -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _flatpak_darktable_prefixes() -> list[Path]:
+    home = Path.home()
+    return [
+        home / ".local/share/flatpak/app/org.darktable.Darktable/current/active/files",
+        Path("/var/lib/flatpak/app/org.darktable.Darktable/current/active/files"),
+    ]
+
+
+def _flatpak_darktable_available() -> bool:
+    if shutil.which("flatpak") is None:
+        return False
+
+    for prefix in _flatpak_darktable_prefixes():
+        if (prefix / "lib" / "libdarktable.so").exists() or (prefix / "lib64" / "libdarktable.so").exists():
+            return True
+    return False
+
+
+def _suggested_darktable_cli() -> str | None:
+    override = os.environ.get("DARKTABLE_CLI_CMD")
+    if override:
+        return override
+
+    direct = shutil.which("darktable-cli")
+    if direct:
+        return direct
+
+    if _flatpak_darktable_available():
+        return "flatpak run --command=darktable-cli org.darktable.Darktable"
+
+    return None
+
+
 def check_dependencies(binaries: Iterable[str]) -> None:
-    checks = {name: shutil.which(name) is not None for name in binaries}
+    checks: dict[str, str | None] = {}
+
+    for name in binaries:
+        if name == "darktable-cli":
+            checks[name] = _suggested_darktable_cli()
+        else:
+            checks[name] = shutil.which(name)
 
     print("[check-deps] Resultado:")
-    for name, ok in checks.items():
-        print(f"  - {name}: {'OK' if ok else 'NÃO ENCONTRADO'}")
+    for name, location in checks.items():
+        if location:
+            print(f"  - {name}: OK ({location})")
+        else:
+            print(f"  - {name}: NÃO ENCONTRADO")
 
-    missing = [name for name, ok in checks.items() if not ok]
+    missing = [name for name, location in checks.items() if not location]
     if missing:
         raise SystemExit(1)
     raise SystemExit(0)

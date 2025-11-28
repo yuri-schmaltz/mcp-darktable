@@ -37,6 +37,19 @@ em fluxos de tratamento em lote (rating, tagging, export).
 - Python 3 + `requests`
 - Opcional: Ollama e/ou LM Studio rodando localmente
 
+### Darktable via Flatpak
+
+- O servidor MCP tenta localizar automaticamente bibliotecas e módulos do darktable em instalações
+  Flatpak comuns (`~/.local/share/flatpak/app/org.darktable.Darktable/current/active/files` ou
+  `/var/lib/flatpak/app/org.darktable.Darktable/current/active/files`).
+- Para caminhos não convencionais, defina `DARKTABLE_FLATPAK_PREFIX` ou `DARKTABLE_PREFIX` com o
+  prefixo que contém `libdarktable.so`, `share/darktable` e `lib*/darktable`.
+- O fluxo de export passa a aceitar o comando `darktable-cli` exposto via Flatpak. Se ele não estiver no
+  `PATH`, defina `DARKTABLE_CLI_CMD="flatpak run --command=darktable-cli org.darktable.Darktable"`
+  (ou outro comando personalizado).
+- A flag `--check-deps` dos hosts agora sinaliza quando o darktable foi encontrado via Flatpak ou por
+  override em `DARKTABLE_CLI_CMD`.
+
 Use `python host/mcp_host_lmstudio.py --check-deps` para verificar rapidamente se `lua`, `darktable-cli`
 e a biblioteca `requests` estão acessíveis.
 
