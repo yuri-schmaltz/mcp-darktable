@@ -486,6 +486,8 @@ class MCPGui(QMainWindow):
         llm_form.addRow("URL:", self.url_edit)
         llm_form.addRow("Modelo:", model_row_widget)
 
+        self._sync_form_label_widths(config_form, llm_form)
+
         llm_layout.addLayout(llm_form)
 
         config_layout.addWidget(llm_group)
@@ -588,6 +590,24 @@ class MCPGui(QMainWindow):
         widget.setMinimumWidth(260)
         widget.setMinimumHeight(32)
         widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+    def _sync_form_label_widths(self, *forms: QFormLayout) -> None:
+        """Mantém colunas de rótulos alinhadas entre múltiplos formulários."""
+
+        max_width = 0
+        labels = []
+
+        for form in forms:
+            for row in range(form.rowCount()):
+                label_item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+                label_widget = label_item.widget() if label_item else None
+                if label_widget:
+                    labels.append(label_widget)
+                    max_width = max(max_width, label_widget.sizeHint().width())
+
+        for label in labels:
+            label.setMinimumWidth(max_width)
+            label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
     # ----------------------------- Padrões -------------------------------------
 
