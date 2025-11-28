@@ -479,23 +479,22 @@ class MCPGui(QMainWindow):
         model_row_layout = QHBoxLayout(model_row_widget)
         model_row_layout.setContentsMargins(0, 0, 0, 0)
         model_row_layout.setSpacing(12)
-        
-        # combo ocupa o espaço, mas alinhado verticalmente ao centro
-        model_row_layout.addWidget(
-            self.model_combo,
-            1,
-            Qt.AlignmentFlag.AlignVCenter,
-        )        
-        
-        
+        model_row_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+
         model_row_layout.addWidget(self.model_combo, stretch=1)
         model_row_layout.addWidget(actions_widget)
-        model_row_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+
+        url_model_row_widget = QWidget()
+        url_model_row_layout = QHBoxLayout(url_model_row_widget)
+        url_model_row_layout.setContentsMargins(0, 0, 0, 0)
+        url_model_row_layout.setSpacing(12)
+
+        url_model_row_layout.addWidget(self.url_edit, stretch=1)
+        url_model_row_layout.addWidget(model_row_widget, stretch=1)
 
         # LLM na mesma coluna do restante
         config_form.addRow("Framework:", host_widget)
-        config_form.addRow("URL:", self.url_edit)
-        config_form.addRow("Modelo:", model_row_widget)
+        config_form.addRow("URL:", url_model_row_widget)
 
         # Ajusta largura de todos os rótulos desse formulário
         self._sync_form_label_widths(config_form)
