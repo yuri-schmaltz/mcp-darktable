@@ -276,7 +276,7 @@ class MCPGui(QMainWindow):
         config_form.setHorizontalSpacing(16)
         config_form.setVerticalSpacing(12)
         config_form.setLabelAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
         config_form.setFormAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
@@ -476,7 +476,12 @@ class MCPGui(QMainWindow):
         llm_form.setContentsMargins(0, 0, 0, 0)
         llm_form.setHorizontalSpacing(14)
         llm_form.setVerticalSpacing(10)
-        llm_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        llm_form.setFormAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
+        )
+        llm_form.setLabelAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
         llm_form.addRow("Framework:", host_widget)
         llm_form.addRow("URL:", self.url_edit)
         llm_form.addRow("Modelo:", model_row_widget)
