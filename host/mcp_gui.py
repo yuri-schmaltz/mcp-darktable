@@ -8,6 +8,7 @@ os hosts mostrando o progresso das atividades.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import threading
@@ -18,7 +19,7 @@ from urllib.parse import urlsplit
 import requests
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -70,6 +71,12 @@ class MCPGui(QMainWindow):
         self.setMinimumSize(940, 680)
         self._apply_window_icon()
         self._current_thread: Optional[threading.Thread] = None
+        self._current_image_path: Optional[Path] = None
+        self._current_pixmap: Optional[QPixmap] = None
+        self._image_path_pattern = re.compile(
+            r"([A-Za-z]:\\[^\n]+?\.(?:jpe?g|png|tiff?|bmp|webp)|/[^\n]+?\.(?:jpe?g|png|tiff?|bmp|webp))",
+            re.IGNORECASE,
+        )
 
         self.log_signal.connect(self._append_log_ui)
         self.status_signal.connect(self._set_status_ui)
@@ -244,6 +251,15 @@ class MCPGui(QMainWindow):
             QProgressBar::chunk {
                 border-radius: 3px;
                 background-color: #77a0ff;
+            }
+
+            /* PREVIEW DE IMAGEM ------------------------------------ */
+            QLabel#imagePreview {
+                background-color: #3b2a1c;
+                border: 2px solid #2da86f;
+                border-radius: 10px;
+                color: #d9d9d9;
+                padding: 10px;
             }
             """
         )
@@ -475,9 +491,13 @@ class MCPGui(QMainWindow):
         config_layout.addLayout(config_form)
         form_column.addWidget(config_group, stretch=1)
 
+        # ------------------------------------ Visualização da imagem atual -------
+        current_image_group = self._build_current_image_group()
+
         # ------------------------------------ Log -------------------------------
         log_group = QGroupBox("Log")
-        log_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        log_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        log_group.setMaximumHeight(360)
 
         log_layout = QVBoxLayout(log_group)
         log_layout.setContentsMargins(18, 12, 18, 12)
@@ -486,7 +506,7 @@ class MCPGui(QMainWindow):
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
-        self.log_text.setMinimumHeight(120)
+        self.log_text.setMinimumHeight(110)
         self.log_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.log_text.setToolTip("Logs e progresso serão exibidos aqui...")
 
@@ -500,7 +520,8 @@ class MCPGui(QMainWindow):
 
         right_column = QVBoxLayout()
         right_column.setSpacing(14)
-        right_column.addWidget(log_group, stretch=1)
+        right_column.addWidget(current_image_group, stretch=3)
+        right_column.addWidget(log_group, stretch=2)
 
         # ----------------------------- Botão principal --------------------------
         self.run_button = QPushButton("Executar host")
@@ -525,7 +546,42 @@ class MCPGui(QMainWindow):
 
         main_layout.addLayout(content_layout)
 
+        self._reset_image_preview()
         self._build_status_bar()
+
+    def _build_current_image_group(self) -> QGroupBox:
+        group = QGroupBox("Imagem em tratamento")
+        group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(18, 12, 18, 12)
+        layout.setSpacing(10)
+
+        self.image_preview = QLabel("Pré-visualização da imagem em execução")
+        self.image_preview.setObjectName("imagePreview")
+        self.image_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_preview.setMinimumHeight(320)
+        self.image_preview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.image_preview.setWordWrap(True)
+
+        layout.addWidget(self.image_preview)
+
+        meta_layout = QVBoxLayout()
+        meta_layout.setSpacing(4)
+
+        self.image_title_label = QLabel("Nenhuma imagem em tratamento")
+        self.image_title_label.setStyleSheet("font-weight: 600;")
+        self.image_title_label.setWordWrap(True)
+
+        self.image_path_label = QLabel("Inicie a execução para visualizar o arquivo atual.")
+        self.image_path_label.setStyleSheet("color: #c9c9c9;")
+        self.image_path_label.setWordWrap(True)
+
+        meta_layout.addWidget(self.image_title_label)
+        meta_layout.addWidget(self.image_path_label)
+
+        layout.addLayout(meta_layout)
+        return group
 
     # ----------------------------- Barra de Status --------------------------
         
@@ -545,6 +601,64 @@ class MCPGui(QMainWindow):
 
         status_bar.addPermanentWidget(self.progress, 1)
         self.setStatusBar(status_bar)
+
+    def _reset_image_preview(self, message: str | None = None) -> None:
+        self._current_image_path = None
+        self._current_pixmap = None
+        self.image_preview.setPixmap(QPixmap())
+        self.image_preview.setText(
+            message
+            or "Nenhuma imagem está em tratamento no momento. Aguardando execução..."
+        )
+        self.image_title_label.setText("Nenhuma imagem em tratamento")
+        self.image_path_label.setText("Inicie a execução para visualizar a imagem atual.")
+
+    def _set_current_image_preview(self, path: Path) -> None:
+        expanded = path.expanduser()
+        self._current_image_path = expanded
+        self.image_title_label.setText(expanded.name)
+        self.image_path_label.setText(str(expanded))
+
+        pixmap = QPixmap(str(expanded))
+        if pixmap.isNull():
+            self._current_pixmap = None
+            self.image_preview.setPixmap(QPixmap())
+            self.image_preview.setText("Pré-visualização indisponível para este arquivo.")
+            return
+
+        self._current_pixmap = pixmap
+        self.image_preview.setText("")
+        self._refresh_image_preview()
+
+    def _refresh_image_preview(self) -> None:
+        if not self._current_pixmap:
+            return
+
+        target_size = self.image_preview.size()
+        if target_size.width() <= 2 or target_size.height() <= 2:
+            return
+
+        scaled = self._current_pixmap.scaled(
+            target_size,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self.image_preview.setPixmap(scaled)
+
+    def _maybe_update_image_preview(self, text: str) -> None:
+        if not text:
+            return
+
+        for line in text.splitlines():
+            match = self._image_path_pattern.search(line)
+            if not match:
+                continue
+
+            cleaned = match.group(0).strip(" ' \"")
+            candidate = Path(cleaned)
+            if candidate.exists():
+                self._set_current_image_preview(candidate)
+                return
 
     def _standardize_button(self, button: QPushButton) -> None:
         button.setMinimumWidth(130)
@@ -758,6 +872,7 @@ class MCPGui(QMainWindow):
         self.log_text.verticalScrollBar().setValue(
             self.log_text.verticalScrollBar().maximum()
         )
+        self._maybe_update_image_preview(text)
 
     @Slot(str)
     def _set_status_ui(self, text: str) -> None:
@@ -771,6 +886,10 @@ class MCPGui(QMainWindow):
             self.progress.setRange(0, 1)
             self.progress.setValue(0)
             self.progress.setFormat("Pronto.")
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._refresh_image_preview()
 
     @Slot(str)
     def _show_error(self, message: str) -> None:
@@ -888,6 +1007,8 @@ class MCPGui(QMainWindow):
         except ValueError as exc:
             QMessageBox.critical(self, "Parâmetros inválidos", str(exc))
             return
+
+        self._reset_image_preview("Aguardando detecção da imagem em processamento...")
 
         def task() -> None:
             cmd = config.build_command()
