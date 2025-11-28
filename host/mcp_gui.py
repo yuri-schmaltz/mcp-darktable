@@ -469,14 +469,12 @@ class MCPGui(QMainWindow):
             self.model_combo,
             1,
             Qt.AlignmentFlag.AlignVCenter,
-        )      
+        )        
         
-        # bloco dos botões também alinhado ao centro vertical
-        model_row_layout.addWidget(
-            actions_widget,
-            0,
-            Qt.AlignmentFlag.AlignVCenter,
-        )
+        
+        model_row_layout.addWidget(self.model_combo, stretch=1)
+        model_row_layout.addWidget(actions_widget)
+        model_row_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         # LLM na mesma coluna do restante
         config_form.addRow("Framework:", host_widget)
