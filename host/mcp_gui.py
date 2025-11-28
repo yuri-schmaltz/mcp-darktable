@@ -450,8 +450,7 @@ class MCPGui(QMainWindow):
 
         # LLM na mesma coluna do restante
         config_form.addRow("Framework:", host_widget)
-        config_form.addRow("URL:", self.url_edit)
-        config_form.addRow("Modelo:", model_row_widget)
+        config_form.addRow("URL:", url_model_row_widget)
 
         # Ajusta largura de todos os rótulos desse formulário
         self._sync_form_label_widths(config_form)
