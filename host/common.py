@@ -123,7 +123,7 @@ def _suggested_darktable_cli() -> str | None:
     return None
 
 
-def check_dependencies(binaries: Iterable[str]) -> None:
+def check_dependencies(binaries: Iterable[str], *, exit_on_success: bool = True) -> list[str]:
     checks: dict[str, str | None] = {}
 
     for name in binaries:
@@ -141,8 +141,13 @@ def check_dependencies(binaries: Iterable[str]) -> None:
 
     missing = [name for name, location in checks.items() if not location]
     if missing:
-        raise SystemExit(1)
-    raise SystemExit(0)
+        if exit_on_success:
+            raise SystemExit(1)
+        return missing
+
+    if exit_on_success:
+        raise SystemExit(0)
+    return []
 
 
 def load_prompt(mode: str, prompt_file: Optional[str] = None) -> str:
