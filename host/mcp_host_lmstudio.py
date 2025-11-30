@@ -37,6 +37,8 @@ DEPENDENCY_BINARIES = ["lua", "darktable-cli"]
 def _fetch_lmstudio_model_metadata(model: str, url: str | None = None) -> dict | None:
     raw_base = (url or LMSTUDIO_URL).rstrip("/")
     if raw_base.endswith("/v1/chat/completions"):
+        base = raw_base[: -len("/v1/chat/completions")]
+    elif raw_base.endswith("/chat/completions"):
         base = raw_base[: -len("/chat/completions")]
     else:
         base = raw_base
