@@ -44,9 +44,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from common import probe_darktable_state
 from interactive_cli import DEFAULT_LIMIT, DEFAULT_MIN_RATING, RunConfig
 from mcp_host_lmstudio import LMSTUDIO_MODEL, LMSTUDIO_URL
-from mcp_host_ollama import OLLAMA_MODEL, OLLAMA_URL, load_prompt as load_ollama_prompt
+from mcp_host_ollama import (
+    APP_VERSION as HOST_APP_VERSION,
+    OLLAMA_MODEL,
+    OLLAMA_URL,
+    PROTOCOL_VERSION as MCP_PROTOCOL_VERSION,
+    load_prompt as load_ollama_prompt,
+)
+
+GUI_CLIENT_INFO = {"name": "darktable-mcp-gui", "version": HOST_APP_VERSION}
 
 
 class MCPGui(QMainWindow):
@@ -348,6 +357,25 @@ class MCPGui(QMainWindow):
         config_form.addRow("Path contém:", self.path_contains_edit)
         config_form.addRow("Tag:", self.tag_edit)
         config_form.addRow("Coleção:", self.collection_edit)
+
+        self.darktable_probe_button = QPushButton("Checar darktable")
+        self.darktable_probe_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
+        )
+        self.darktable_probe_button.setToolTip(
+            "Testa a conexão com o darktable, lista coleções e mostra uma amostra das fotos encontradas"
+        )
+        self.darktable_probe_button.clicked.connect(self._probe_darktable_connection)
+        self._standardize_button(self.darktable_probe_button, width=170)
+
+        darktable_row_widget = QWidget()
+        darktable_row_layout = QHBoxLayout(darktable_row_widget)
+        darktable_row_layout.setContentsMargins(0, 0, 0, 0)
+        darktable_row_layout.setSpacing(10)
+        darktable_row_layout.addWidget(self.darktable_probe_button)
+        darktable_row_layout.addStretch()
+
+        config_form.addRow("Catálogo:", darktable_row_widget)
 
         # Prompt custom + botões
         prompt_row_widget = QWidget()
@@ -988,6 +1016,77 @@ class MCPGui(QMainWindow):
             self.models_signal.emit(models)
 
         self._run_async("Verificando servidor LLM...", task)
+
+    def _probe_darktable_connection(self) -> None:
+        min_rating = int(self.min_rating_spin.value())
+        only_raw = bool(self.only_raw_check.isChecked())
+        sample_limit = min(int(self.limit_spin.value()), 50)
+
+        def task() -> None:
+            self._append_log("[dt] Verificando conexão com o darktable...")
+            probe = probe_darktable_state(
+                MCP_PROTOCOL_VERSION,
+                GUI_CLIENT_INFO,
+                min_rating=min_rating,
+                only_raw=only_raw,
+                sample_limit=sample_limit,
+            )
+
+            deps = probe.get("dependencies", {})
+            missing = probe.get("missing_dependencies", [])
+            for name, location in deps.items():
+                status = f"OK ({location})" if location else "NÃO encontrado"
+                self._append_log(f"[deps] {name}: {status}")
+
+            cli_cmd = deps.get("darktable-cli") or ""
+            if cli_cmd.startswith("flatpak run"):
+                self._append_log(
+                    "[flatpak] darktable-cli disponível via Flatpak. Ajuste DARKTABLE_FLATPAK_PREFIX "
+                    "ou DARKTABLE_CLI_CMD se usar um prefixo diferente."
+                )
+
+            if missing:
+                self._append_log(
+                    "[dt] Dependências ausentes; instale-as e tente novamente."
+                )
+                self.status_signal.emit("Dependências do darktable ausentes.")
+                return
+
+            if probe.get("error"):
+                self._append_log(f"[dt] Erro ao consultar darktable: {probe['error']}")
+                self.status_signal.emit("Falha ao conectar ao darktable.")
+                return
+
+            tools = probe.get("tools") or []
+            self._append_log(
+                f"[dt] MCP inicializado. Ferramentas: {', '.join(tools) if tools else 'nenhuma'}"
+            )
+
+            collections = probe.get("collections") or []
+            self._append_log(f"[dt] Coleções detectadas ({len(collections)}):")
+            for entry in collections[:10]:
+                film = entry.get("film_roll")
+                suffix = f" [filme: {film}]" if film else ""
+                self._append_log(
+                    f"  - {entry.get('path')} ({entry.get('image_count', 0)} fotos){suffix}"
+                )
+            if len(collections) > 10:
+                self._append_log(f"  ... +{len(collections) - 10} coleções")
+
+            total = probe.get("image_total", 0)
+            sample = probe.get("sample_images") or []
+            self._append_log(f"[dt] Imagens disponíveis: {total} (amostra de {len(sample)})")
+            for item in sample[:10]:
+                path = Path(item.get("path", "")) / str(item.get("filename", ""))
+                labels = ",".join(item.get("colorlabels", []))
+                self._append_log(
+                    f"  - id={item.get('id')} rating={item.get('rating')} raw={item.get('is_raw')} "
+                    f"labels={labels} {path}"
+                )
+
+            self.status_signal.emit("Darktable acessível e catálogo listado.")
+
+        self._run_async("Consultando darktable...", task)
 
     def _fetch_available_models(self, host: str, url: str) -> list[str]:
         if host == "ollama":
