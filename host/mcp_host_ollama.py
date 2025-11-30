@@ -380,8 +380,14 @@ def run_mode_tratamento(client, args):
         print("[tratamento] Erro ao parsear JSON:", exc)
         return
 
-    plano = parsed.get("plano") or parsed.get("plan")
-    if not plano:
+    plano = (
+        parsed.get("ajustes")
+        if "ajustes" in parsed
+        else parsed.get("plano")
+        if "plano" in parsed
+        else parsed.get("plan")
+    )
+    if plano is None:
         print("[tratamento] Nenhum plano retornado pelo modelo.")
         return
 
