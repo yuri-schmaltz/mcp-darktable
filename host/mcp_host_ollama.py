@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 
 import requests
 
@@ -17,6 +18,7 @@ from common import (
     fallback_user_prompt,
     fetch_images,
     load_prompt,
+    post_json_with_retries,
     prepare_vision_payloads,
     probe_darktable_state,
     save_log,
@@ -25,6 +27,16 @@ from common import (
 # Config padrão do Ollama
 OLLAMA_URL = "http://localhost:11434"
 OLLAMA_MODEL = ""
+DEFAULT_OLLAMA_TIMEOUT = 60.0
+
+_env_timeout = os.getenv("OLLAMA_TIMEOUT")
+if _env_timeout:
+    try:
+        DEFAULT_OLLAMA_TIMEOUT = float(_env_timeout)
+    except ValueError:
+        print(
+            f"[config] OLLAMA_TIMEOUT inválido ('{_env_timeout}'); usando {DEFAULT_OLLAMA_TIMEOUT}s."
+        )
 
 PROTOCOL_VERSION = "2024-11-05"
 APP_VERSION = "0.2.0"
@@ -38,7 +50,9 @@ def _normalize_base_url(url: str | None) -> str:
     return base.rstrip("/")
 
 
-def call_ollama(system_prompt, user_prompt, model=None, url=None):
+def call_ollama(
+    system_prompt, user_prompt, model=None, url=None, *, timeout=DEFAULT_OLLAMA_TIMEOUT
+):
     base = _normalize_base_url(url)
     model = model or OLLAMA_MODEL
 
@@ -51,13 +65,22 @@ def call_ollama(system_prompt, user_prompt, model=None, url=None):
         ],
         "stream": False,
     }
-    resp = requests.post(chat_url, json=payload)
+    resp, _ = post_json_with_retries(
+        chat_url,
+        payload,
+        timeout=timeout,
+        retries=1,
+        retry_delay=1.0,
+        description="chamar o Ollama (chat)",
+    )
     resp.raise_for_status()
     data = resp.json()
     return data["message"]["content"]
 
 
-def call_ollama_messages(messages, model=None, url=None):
+def call_ollama_messages(
+    messages, model=None, url=None, *, timeout=DEFAULT_OLLAMA_TIMEOUT
+):
     base = _normalize_base_url(url)
     model = model or OLLAMA_MODEL
 
@@ -67,7 +90,14 @@ def call_ollama_messages(messages, model=None, url=None):
         "messages": messages,
         "stream": False,
     }
-    resp = requests.post(chat_url, json=payload)
+    resp, _ = post_json_with_retries(
+        chat_url,
+        payload,
+        timeout=timeout,
+        retries=1,
+        retry_delay=1.0,
+        description="chamar o Ollama (chat)",
+    )
     resp.raise_for_status()
     data = resp.json()
     return data["message"]["content"]
@@ -211,6 +241,15 @@ def parse_args():
     p.add_argument("--model", help="Nome do modelo no Ollama.")
     p.add_argument("--ollama-url", help="URL do servidor Ollama.")
     p.add_argument(
+        "--timeout",
+        type=float,
+        default=DEFAULT_OLLAMA_TIMEOUT,
+        help=(
+            "Timeout em segundos para chamadas ao Ollama. "
+            "Pode ser definido via env OLLAMA_TIMEOUT."
+        ),
+    )
+    p.add_argument(
         "--target-dir",
         help="Diretório de saída para export (obrigatório em --mode export ou completo).",
     )
@@ -311,6 +350,7 @@ def run_mode_rating(client, args):
         messages,
         model=args.model or OLLAMA_MODEL,
         url=args.ollama_url or OLLAMA_URL,
+        timeout=args.timeout,
     )
     print("[rating] Resposta bruta do modelo:")
     print(answer)
@@ -372,6 +412,7 @@ def run_mode_tagging(client, args):
         messages,
         model=args.model or OLLAMA_MODEL,
         url=args.ollama_url or OLLAMA_URL,
+        timeout=args.timeout,
     )
     print("[tagging] Resposta bruta do modelo:")
     print(answer)
@@ -443,6 +484,7 @@ def run_mode_tratamento(client, args):
         messages,
         model=args.model or OLLAMA_MODEL,
         url=args.ollama_url or OLLAMA_URL,
+        timeout=args.timeout,
     )
 
     print("[tratamento] Resposta bruta do modelo:")
@@ -506,6 +548,7 @@ def run_mode_export(client, args):
         messages,
         model=args.model or OLLAMA_MODEL,
         url=args.ollama_url or OLLAMA_URL,
+        timeout=args.timeout,
     )
     print("[export] Resposta bruta do modelo:")
     print(answer)

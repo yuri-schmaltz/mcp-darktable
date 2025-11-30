@@ -103,6 +103,10 @@ cd darktable-mcp-batch
 python host/mcp_host_ollama.py --mode rating --source all --dry-run
 ```
 
+As chamadas ao Ollama usam timeout padrão de 60s (configurável via `--timeout` ou
+variável de ambiente `OLLAMA_TIMEOUT`). Se o tempo for excedido, o host informa o
+motivo e sugere aumentar o limite.
+
 Caso ainda não tenha o modelo local, o host pode acionar o download diretamente:
 
 ```bash

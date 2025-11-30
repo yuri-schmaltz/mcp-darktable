@@ -12,6 +12,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Iterable, List, Optional
 
+import requests
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOG_DIR = BASE_DIR / "logs"
 PROMPT_DIR = BASE_DIR / "config" / "prompts"
@@ -98,6 +100,71 @@ class McpClient:
 
 def _ensure_paths() -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def post_json_with_retries(
+    url: str,
+    payload: dict,
+    *,
+    timeout: float,
+    retries: int = 1,
+    retry_delay: float = 1.0,
+    description: str | None = None,
+):
+    """Faz POST JSON com retries curtos e logs de tentativa.
+
+    Parameters
+    ----------
+    url: str
+        URL alvo.
+    payload: dict
+        Corpo JSON enviado.
+    timeout: float
+        Timeout em segundos.
+    retries: int
+        Número de novas tentativas após a primeira.
+    retry_delay: float
+        Intervalo entre tentativas, em segundos.
+    description: str | None
+        Texto amigável para logs. Se omitido, usa a própria URL.
+    """
+
+    desc = description or f"POST {url}"
+    attempts = retries + 1
+    last_error: Exception | None = None
+    last_timeout_msg: str | None = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            started = time.time()
+            resp = requests.post(url, json=payload, timeout=timeout)
+            elapsed_ms = int((time.time() - started) * 1000)
+            if attempt > 1:
+                print(f"[http] {desc} concluído após retry ({elapsed_ms} ms).")
+            return resp, elapsed_ms
+        except requests.Timeout as exc:
+            last_timeout_msg = (
+                f"{desc} excedeu o tempo limite de {timeout}s (tentativa {attempt}/{attempts}). "
+                "Ajuste --timeout ou OLLAMA_TIMEOUT se precisar de mais tempo."
+            )
+            print(f"[http] {last_timeout_msg}")
+            last_error = exc
+        except requests.RequestException as exc:
+            last_error = exc
+            print(
+                f"[http] Erro ao {desc}: {exc} (tentativa {attempt}/{attempts})."
+            )
+
+        if attempt < attempts:
+            time.sleep(retry_delay)
+
+    if last_timeout_msg:
+        raise SystemExit(last_timeout_msg)
+
+    if last_error:
+        raise SystemExit(f"Falha ao {desc}: {last_error}")
+
+    raise SystemExit(f"Falha desconhecida ao {desc}")
 
 
 def _flatpak_darktable_prefixes() -> list[Path]:
