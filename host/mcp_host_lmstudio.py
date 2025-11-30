@@ -33,6 +33,108 @@ LMSTUDIO_MODEL = ""
 DEPENDENCY_BINARIES = ["lua", "darktable-cli"]
 
 
+# --------- UTIL: checagem de modelo ---------
+def _fetch_lmstudio_model_metadata(model: str, url: str | None = None) -> dict | None:
+    raw_base = (url or LMSTUDIO_URL).rstrip("/")
+    if raw_base.endswith("/v1/chat/completions"):
+        base = raw_base[: -len("/chat/completions")]
+    else:
+        base = raw_base
+    by_id_url = f"{base}/v1/models/{model}"
+    list_url = f"{base}/v1/models"
+
+    for target in (by_id_url, list_url):
+        try:
+            resp = requests.get(target, timeout=5)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception:
+            continue
+
+        if target == by_id_url:
+            return data
+
+        entries = data.get("data") or data.get("models") or []
+        for entry in entries:
+            if entry.get("id") == model or entry.get("name") == model or entry.get("model") == model:
+                return entry
+
+    return None
+
+
+def _classify_multimodal_capability(metadata: dict, fallback_name: str) -> tuple[str, str]:
+    capabilities = metadata.get("capabilities") or metadata.get("capability") or {}
+    metadata_block = metadata.get("metadata")
+    if not capabilities and isinstance(metadata_block, dict):
+        capabilities = metadata_block.get("capabilities") or {}
+
+    modalities = (
+        metadata.get("modalities")
+        or metadata.get("modality")
+        or capabilities.get("modalities")
+        or capabilities.get("modality")
+    )
+
+    if isinstance(capabilities, dict):
+        if capabilities.get("vision") is True:
+            return "supported", "capabilities.vision=true"
+        if capabilities.get("vision") is False:
+            return "unsupported", "capabilities.vision=false"
+
+    if modalities:
+        if isinstance(modalities, list) and any(m in {"image", "vision", "multimodal"} for m in modalities):
+            return "supported", "modalities inclui imagem"
+        if isinstance(modalities, str) and any(word in modalities.lower() for word in ["vision", "image"]):
+            return "supported", f"modalities='{modalities}'"
+
+    name = str(
+        metadata.get("id")
+        or metadata.get("model")
+        or metadata.get("name")
+        or fallback_name
+    ).lower()
+    if any(token in name for token in ["vision", "-vl", "_vl", "-vision", "vl-"]):
+        return "supported", "heurística no nome do modelo"
+
+    return "unknown", "metadados não indicam visão"
+
+
+def ensure_model_supports_images(model: str | None, url: str | None, text_only: bool) -> None:
+    if text_only:
+        return
+
+    effective_model = model or LMSTUDIO_MODEL
+    if not effective_model:
+        print(
+            "[vision-check] Modelo não especificado; não é possível validar suporte a imagens. "
+            "Use --text-only se encontrar erros."
+        )
+        return
+
+    metadata = _fetch_lmstudio_model_metadata(effective_model, url)
+    if not metadata:
+        print(
+            f"[vision-check] Não foi possível obter metadados para '{effective_model}'. "
+            "Prosseguindo mesmo assim; use --text-only se o provider recusar imagens."
+        )
+        return
+
+    status, detail = _classify_multimodal_capability(metadata, effective_model)
+    if status == "unsupported":
+        raise SystemExit(
+            f"[vision-check] O modelo '{effective_model}' não parece suportar imagens ({detail}). "
+            "Escolha um modelo multimodal ou execute com --text-only."
+        )
+
+    if status == "supported":
+        print(f"[vision-check] Modelo '{effective_model}' validado como multimodal ({detail}).")
+    else:
+        print(
+            f"[vision-check] Suporte a imagens não pôde ser confirmado para '{effective_model}' "
+            f"({detail}). Continue apenas se tiver certeza de que o modelo é multimodal."
+        )
+
+
 # --------- UTIL: chamada ao LM Studio ---------
 def call_lmstudio(system_prompt, user_prompt, model=None, url=None):
     url = url or LMSTUDIO_URL
@@ -593,6 +695,9 @@ def main():
             "--check-deps para revalidar."
         )
         raise SystemExit(1)
+
+    if not args.check_darktable and not args.list_collections:
+        ensure_model_supports_images(args.model, args.lm_url, args.text_only)
 
     LOG_DIR.mkdir(exist_ok=True)
 
