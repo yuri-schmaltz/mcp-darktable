@@ -705,41 +705,42 @@ local function tool_export_collection(args)
     local base = img.filename:gsub("%.[^%.]+$", "") -- tira extensão
     local out  = string.format("%s/%s.%s", safe_target_dir, escape_format(base), format)
 
+    local skip = false
     if not overwrite then
       local f = io.open(out, "r")
       if f then
         f:close()
         -- pula se já existe
-        goto continue
+        skip = true
       end
     end
 
-    -- comando simples; ajuste flags conforme sua necessidade
-    local cmd = string.format('%s "%s" "%s"', DARKTABLE_CLI_CMD, escape_format(input), out)
-    local success, exit_code, stderr_output, exit_reason = run_command_capture(cmd)
+    if not skip then
+      -- comando simples; ajuste flags conforme sua necessidade
+      local cmd = string.format('%s "%s" "%s"', DARKTABLE_CLI_CMD, escape_format(input), out)
+      local success, exit_code, stderr_output, exit_reason = run_command_capture(cmd)
 
-    if success then
-      exported = exported + 1
-    else
-      table.insert(errors, {
-        id = img.id,
-        input = input,
-        output = out,
-        command = cmd,
-        exit = exit_code,
-        exit_reason = exit_reason,
-        stderr = stderr_output,
-      })
-      io.stderr:write(string.format(
-        "[export_collection] falha exportando id=%s exit=%s motivo=%s stderr=%s\n",
-        tostring(img.id),
-        tostring(exit_code),
-        tostring(exit_reason),
-        (stderr_output or ""):gsub("\n", " ")
-      ))
+      if success then
+        exported = exported + 1
+      else
+        table.insert(errors, {
+          id = img.id,
+          input = input,
+          output = out,
+          command = cmd,
+          exit = exit_code,
+          exit_reason = exit_reason,
+          stderr = stderr_output,
+        })
+        io.stderr:write(string.format(
+          "[export_collection] falha exportando id=%s exit=%s motivo=%s stderr=%s\n",
+          tostring(img.id),
+          tostring(exit_code),
+          tostring(exit_reason),
+          (stderr_output or ""):gsub("\n", " ")
+        ))
+      end
     end
-
-    ::continue::
   end
 
   local summary = string.format("Exportadas %d imagens para %s", exported, target_dir)
