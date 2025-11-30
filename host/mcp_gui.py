@@ -14,6 +14,8 @@ import threading
 from pathlib import Path
 from typing import Callable, Optional
 
+import requests
+
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
@@ -52,6 +54,7 @@ class MCPGui(QMainWindow):
     status_signal = Signal(str)
     progress_signal = Signal(bool)
     error_signal = Signal(str)
+    models_signal = Signal(list)
 
     def __init__(self) -> None:
         super().__init__()
@@ -72,6 +75,7 @@ class MCPGui(QMainWindow):
         self.status_signal.connect(self._set_status_ui)
         self.progress_signal.connect(self._toggle_progress)
         self.error_signal.connect(self._show_error)
+        self.models_signal.connect(self._update_model_options)
 
         self._apply_global_style()
         self._build_layout()
@@ -431,14 +435,32 @@ class MCPGui(QMainWindow):
         self.url_edit = QLineEdit()
         self.url_edit.setToolTip("URL base do servidor LLM escolhido")
         self.model_combo.setToolTip("Nome do modelo carregado no servidor selecionado")
+        self.check_models_button = QPushButton("Testar URL")
+        self.check_models_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload)
+        )
+        self.check_models_button.setToolTip(
+            "Verifica a conectividade com o servidor selecionado e lista modelos disponíveis"
+        )
+        self.check_models_button.clicked.connect(
+            self._check_connection_and_fetch_models
+        )
 
         self._style_form_field(self.url_edit)
         self._style_form_field(self.model_combo)
+        self._standardize_button(self.check_models_button, width=120)
 
         model_row_widget = QWidget()
         model_row_layout = QHBoxLayout(model_row_widget)
         model_row_layout.setContentsMargins(0, 0, 0, 0)
         model_row_layout.setSpacing(12)
+
+        url_row_widget = QWidget()
+        url_row_layout = QHBoxLayout(url_row_widget)
+        url_row_layout.setContentsMargins(0, 0, 0, 0)
+        url_row_layout.setSpacing(8)
+        url_row_layout.addWidget(self.url_edit, 1)
+        url_row_layout.addWidget(self.check_models_button)
 
         # combo ocupa o espaço, mas alinhado verticalmente ao centro
         model_row_layout.addWidget(
@@ -450,7 +472,7 @@ class MCPGui(QMainWindow):
 
         # LLM na mesma coluna do restante
         config_form.addRow("Framework:", host_widget)
-        config_form.addRow("URL:", self.url_edit)
+        config_form.addRow("URL:", url_row_widget)
         config_form.addRow("Modelo:", model_row_widget)
 
         # Ajusta largura de todos os rótulos desse formulário
@@ -943,6 +965,79 @@ class MCPGui(QMainWindow):
         )
 
     # ----------------------------- Utilidades -------------------------------------------
+
+    def _check_connection_and_fetch_models(self) -> None:
+        host = self._selected_host()
+
+        def task() -> None:
+            base_url = self.url_edit.text().strip() or (
+                OLLAMA_URL if host == "ollama" else LMSTUDIO_URL
+            )
+            models = self._fetch_available_models(host, base_url)
+
+            readable = "Ollama" if host == "ollama" else "LM Studio"
+            self._append_log(
+                f"[ok] {readable} acessível em {base_url}. {len(models)} modelo(s) encontrado(s)."
+            )
+            if models:
+                self._append_log("Modelos disponíveis: " + ", ".join(models))
+            else:
+                self._append_log("Nenhum modelo retornado pelo servidor.")
+
+            self.status_signal.emit(f"{len(models)} modelo(s) disponível(is).")
+            self.models_signal.emit(models)
+
+        self._run_async("Verificando servidor LLM...", task)
+
+    def _fetch_available_models(self, host: str, url: str) -> list[str]:
+        if host == "ollama":
+            return self._fetch_ollama_models(url)
+        return self._fetch_lmstudio_models(url)
+
+    def _fetch_ollama_models(self, url: str) -> list[str]:
+        base = url.rstrip("/") or OLLAMA_URL
+        tags_url = f"{base}/api/tags"
+        resp = requests.get(tags_url, timeout=5)
+        resp.raise_for_status()
+
+        data = resp.json()
+        models = [m.get("name", "") for m in data.get("models", []) if m.get("name")]
+        return models
+
+    def _fetch_lmstudio_models(self, url: str) -> list[str]:
+        cleaned = url.rstrip("/") or LMSTUDIO_URL
+        v1_idx = cleaned.find("/v1")
+        if v1_idx != -1:
+            base = cleaned[: v1_idx + 3]
+        else:
+            base = cleaned
+            if not base.endswith("/v1"):
+                base = base + "/v1"
+
+        models_url = f"{base}/models"
+        resp = requests.get(models_url, timeout=5)
+        resp.raise_for_status()
+
+        data = resp.json()
+        items = data.get("data") or []
+        models = [item.get("id", "") for item in items if item.get("id")]
+        return models
+
+    @Slot(list)
+    def _update_model_options(self, models: list[str]) -> None:
+        current = self.model_combo.currentText().strip()
+
+        self.model_combo.blockSignals(True)
+        self.model_combo.clear()
+        for model in models:
+            self.model_combo.addItem(model)
+
+        if current and current not in models:
+            self.model_combo.insertItem(0, current)
+            self.model_combo.setCurrentText(current)
+        elif models:
+            self.model_combo.setCurrentText(models[0])
+        self.model_combo.blockSignals(False)
 
     def _selected_host(self) -> str:
         return "ollama" if self.host_ollama.isChecked() else "lmstudio"
