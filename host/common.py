@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 import shutil
+import select
 import subprocess
 import time
 from dataclasses import dataclass
@@ -29,7 +30,14 @@ class VisionImage:
 
 
 class McpClient:
-    def __init__(self, cmd: List[str], protocol_version: str, client_info: dict):
+    def __init__(
+        self,
+        cmd: List[str],
+        protocol_version: str,
+        client_info: dict,
+        *,
+        response_timeout: float = 30.0,
+    ):
         self.proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
@@ -41,6 +49,7 @@ class McpClient:
         self.msg_id = 0
         self.protocol_version = protocol_version
         self.client_info = client_info
+        self.response_timeout = response_timeout
 
     def _next_id(self) -> str:
         self.msg_id += 1
@@ -60,21 +69,63 @@ class McpClient:
         self.proc.stdin.flush()
 
         assert self.proc.stdout is not None
+        ready, _, _ = select.select([self.proc.stdout], [], [], self.response_timeout)
+        if not ready:
+            stderr_output = self._drain_stderr()
+            extra = f" | stderr: {stderr_output}" if stderr_output else ""
+            raise TimeoutError(
+                f"Servidor MCP não respondeu em {self.response_timeout}s (timeout){extra}"
+            )
+
         resp_line = self.proc.stdout.readline()
         if not resp_line:
-            stderr_output = ""
-            if self.proc.stderr:
-                try:
-                    stderr_output = self.proc.stderr.read() or ""
-                except Exception:
-                    stderr_output = ""
-
-            extra = f" | stderr: {stderr_output.strip()}" if stderr_output else ""
+            stderr_output = self._drain_stderr()
+            extra = f" | stderr: {stderr_output}" if stderr_output else ""
             raise RuntimeError(f"Servidor MCP não respondeu (stdout vazio){extra}")
         resp = json.loads(resp_line)
         if "error" in resp:
             raise RuntimeError(resp["error"])
         return resp["result"]
+
+    def _drain_stderr(self) -> str:
+        if not self.proc.stderr:
+            return ""
+
+        try:
+            readable, _, _ = select.select([self.proc.stderr], [], [], 0)
+        except Exception:
+            return ""
+
+        if not readable:
+            return ""
+
+        captured_parts: list[str] = []
+
+        while True:
+            try:
+                chunk = self.proc.stderr.readline()
+            except Exception:
+                break
+
+            if not chunk:
+                break
+
+            captured_parts.append(chunk.rstrip())
+
+            try:
+                if not select.select([self.proc.stderr], [], [], 0)[0]:
+                    break
+            except Exception:
+                break
+
+        return " | ".join(part for part in captured_parts if part)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+        return False
 
     def initialize(self):
         params = {
@@ -92,10 +143,30 @@ class McpClient:
         return self.request("tools/call", params)
 
     def close(self):
-        try:
-            self.proc.terminate()
-        except Exception:
-            pass
+        still_running = self.proc.poll() is None
+
+        if still_running:
+            try:
+                self.proc.terminate()
+                self.proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                try:
+                    self.proc.wait(timeout=5)
+                except Exception:
+                    pass
+            except Exception:
+                try:
+                    self.proc.kill()
+                except Exception:
+                    pass
+
+        for stream in (self.proc.stdin, self.proc.stdout, self.proc.stderr):
+            try:
+                if stream:
+                    stream.close()
+            except Exception:
+                pass
 
 
 def _ensure_paths() -> None:

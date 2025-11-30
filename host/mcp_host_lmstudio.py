@@ -702,7 +702,38 @@ def main():
     LOG_DIR.mkdir(exist_ok=True)
 
     try:
-        client = McpClient(DT_SERVER_CMD, PROTOCOL_VERSION, CLIENT_INFO)
+        with McpClient(DT_SERVER_CMD, PROTOCOL_VERSION, CLIENT_INFO) as client:
+            init = client.initialize()
+            print("Inicializado:", init["serverInfo"])
+
+            tools = client.list_tools()
+            names = [t["name"] for t in tools["tools"]]
+            print("Ferramentas MCP disponíveis:", ", ".join(names))
+
+            if args.list_collections:
+                available = list_available_collections(client)
+                print("Coleções conhecidas (path -> imagens):")
+                for entry in available:
+                    print(
+                        f"  - {entry.get('path')}"
+                        f" ({entry.get('image_count', 0)} imagens)"
+                        + (f" [filme: {entry.get('film_roll')}]" if entry.get("film_roll") else "")
+                    )
+                return
+
+            if args.mode == "rating":
+                run_mode_rating(client, args)
+            elif args.mode == "tagging":
+                run_mode_tagging(client, args)
+            elif args.mode == "export":
+                run_mode_export(client, args)
+            elif args.mode == "tratamento":
+                run_mode_tratamento(client, args)
+            elif args.mode == "completo":
+                run_mode_completo(client, args)
+            else:
+                print("Modo desconhecido:", args.mode)
+
     except FileNotFoundError as exc:
         friendly = (
             "Falha ao iniciar o servidor MCP. Certifique-se de que 'lua' e 'darktable-cli' "
@@ -711,40 +742,6 @@ def main():
         print(friendly)
         check_dependencies([*DEPENDENCY_BINARIES], exit_on_success=False)
         raise SystemExit(1) from exc
-    try:
-        init = client.initialize()
-        print("Inicializado:", init["serverInfo"])
-
-        tools = client.list_tools()
-        names = [t["name"] for t in tools["tools"]]
-        print("Ferramentas MCP disponíveis:", ", ".join(names))
-
-        if args.list_collections:
-            available = list_available_collections(client)
-            print("Coleções conhecidas (path -> imagens):")
-            for entry in available:
-                print(
-                    f"  - {entry.get('path')}"
-                    f" ({entry.get('image_count', 0)} imagens)"
-                    + (f" [filme: {entry.get('film_roll')}]" if entry.get("film_roll") else "")
-                )
-            return
-
-        if args.mode == "rating":
-            run_mode_rating(client, args)
-        elif args.mode == "tagging":
-            run_mode_tagging(client, args)
-        elif args.mode == "export":
-            run_mode_export(client, args)
-        elif args.mode == "tratamento":
-            run_mode_tratamento(client, args)
-        elif args.mode == "completo":
-            run_mode_completo(client, args)
-        else:
-            print("Modo desconhecido:", args.mode)
-
-    finally:
-        client.close()
 
 
 if __name__ == "__main__":
