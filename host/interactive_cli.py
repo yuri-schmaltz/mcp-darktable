@@ -39,6 +39,7 @@ class RunConfig:
     llm_url: Optional[str] = None
     target_dir: Optional[str] = None
     prompt_file: Optional[Path] = None
+    prompt_variant: str = "basico"
     text_only: bool = False
     extra_flags: List[str] = field(default_factory=list)
 
@@ -72,7 +73,9 @@ class RunConfig:
             cmd += [flag, self.llm_url]
         if self.prompt_file:
             cmd += ["--prompt-file", str(self.prompt_file)]
-        if self.mode == "export" and self.target_dir:
+        if self.prompt_variant:
+            cmd += ["--prompt-variant", self.prompt_variant]
+        if self.mode in {"export", "completo"} and self.target_dir:
             cmd += ["--target-dir", self.target_dir]
         if self.text_only:
             cmd.append("--text-only")
@@ -126,7 +129,9 @@ def _ask_optional_str(prompt: str) -> Optional[str]:
 def gather_config() -> RunConfig:
     print("=== darktable-mcp interface interativa ===")
     host = _ask_choice("Escolha o host LLM", ["ollama", "lmstudio"], default="ollama")
-    mode = _ask_choice("Modo", ["rating", "tagging", "export", "tratamento"], default="rating")
+    mode = _ask_choice(
+        "Modo", ["rating", "tagging", "export", "tratamento", "completo"], default="rating"
+    )
     source = _ask_choice("Fonte", ["all", "path", "tag", "collection"], default="all")
 
     path_contains = None
@@ -166,10 +171,14 @@ def gather_config() -> RunConfig:
     prompt_file = Path(prompt_file_input).expanduser() if prompt_file_input else None
 
     target_dir = None
-    if mode == "export":
+    if mode in {"export", "completo"}:
         target_dir = _ask_optional_str("Diretório de saída para export")
         if not target_dir:
-            raise SystemExit("--target-dir é obrigatório quando mode=export")
+            raise SystemExit("--target-dir é obrigatório quando mode=export ou completo")
+
+    prompt_variant = _ask_choice(
+        "Nível de prompt (basico/avancado)", ["basico", "avancado"], default="basico"
+    )
 
     extra_flags: List[str] = []
     if _ask_yes_no("Rodar check de dependências antes?", default=False):
@@ -190,6 +199,7 @@ def gather_config() -> RunConfig:
         llm_url=llm_url,
         target_dir=target_dir,
         prompt_file=prompt_file,
+        prompt_variant=prompt_variant,
         text_only=text_only,
         extra_flags=extra_flags,
     )
@@ -223,6 +233,7 @@ def main() -> None:
     print(f"URL do servidor: {config.llm_url or default_url}")
     if config.prompt_file:
         print(f"Prompt personalizado: {config.prompt_file}")
+    print(f"Nível de prompt: {config.prompt_variant}")
     print(f"Enviar imagens ao modelo: {'não (texto/metadados)' if config.text_only else 'sim (multimodal)'}")
     if config.target_dir:
         print(f"Diretório de export: {config.target_dir}")

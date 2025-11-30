@@ -133,9 +133,10 @@ A interface gráfica exibe um painel de "Parâmetros principais" que corresponde
 às opções mais usadas no fluxo de rating/tagging/export. Cada campo da captura
 abaixo corresponde a um parâmetro aceito pelos hosts de linha de comando:
 
-- **Modo** (`rating`, `tagging`, `export`): define a ação principal. Em
-  `rating`, o modelo avalia e atribui ratings; em `tagging`, sugere e aplica
-  tags; em `export`, executa o fluxo de exportação (exigindo `--target-dir`).
+- **Modo** (`rating`, `tagging`, `tratamento`, `export`, `completo`): define a
+  ação principal. `tratamento` registra sugestões de pós-processo; `completo`
+  roda automaticamente rating → tagging → tratamento → export (também exige
+  `--target-dir`).
 - **Fonte** (`all`, `path`, `tag`): escolhe a origem das fotos. `all` processa
   todo o catálogo; `path` filtra por trecho de caminho (`--path-contains`);
   `tag` limita a imagens que já possuam uma tag específica (`--tag`).
@@ -167,7 +168,7 @@ abaixo corresponde a um parâmetro aceito pelos hosts de linha de comando:
    - **LM Studio**: inicie o servidor local em modo OpenAI-compatible e ajuste `LMSTUDIO_URL`/`LMSTUDIO_MODEL` em `host/mcp_host_lmstudio.py`.
 
 5. **Prepare os prompts**
-   - Use os padrões em `config/prompts/` (`rating_basico.md`, `tagging_cliente.md`, `export_job.md`) ou indique outro arquivo com `--prompt-file`.
+   - Use os padrões em `config/prompts/` (`*_basico.md`) ou as variantes avançadas (`*_avancado.md`) e selecione-as via `--prompt-variant basico|avancado`. Também é possível indicar um arquivo específico com `--prompt-file`.
    - Personalize tags, linguagem e limites no prompt antes de rodar para evitar retrabalhos.
 
 6. **Execute um dry-run** (recomendado)
@@ -186,10 +187,15 @@ abaixo corresponde a um parâmetro aceito pelos hosts de linha de comando:
 8. **Rodando para cada modo**
    - **Rating**: remove ou confirma a seleção de imagens. Ex.: `python host/mcp_host_ollama.py --mode rating --limit 150`
    - **Tagging**: adiciona tags sugeridas pelo modelo. Ex.: `python host/mcp_host_lmstudio.py --mode tagging --tag viagem --dry-run`
-  - **Export**: exige `--target-dir` sem `..`, redirecionamentos ou caracteres de shell e aceita apenas
-    formatos `jpg`, `jpeg`, `tif`, `tiff`, `png` e `webp`. Ex.:
+   - **Tratamento**: gera um plano automatizado de pós-processo. Ex.: `python host/mcp_host_ollama.py --mode tratamento --source all --limit 50`
+   - **Export**: exige `--target-dir` sem `..`, redirecionamentos ou caracteres de shell e aceita apenas
+     formatos `jpg`, `jpeg`, `tif`, `tiff`, `png` e `webp`. Ex.:
      ```bash
      python host/mcp_host_ollama.py --mode export --source path --path-contains cliente-x --target-dir out_job_x
+     ```
+   - **Completo**: roda rating → tagging → tratamento → export em sequência. Exige `--target-dir` e respeita o `--prompt-variant` escolhido:
+     ```bash
+     python host/mcp_host_ollama.py --mode completo --source all --target-dir entrega_evento --prompt-variant avancado
      ```
 
 9. **Aplicando de fato**

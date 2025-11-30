@@ -158,19 +158,41 @@ def check_dependencies(binaries: Iterable[str], *, exit_on_success: bool = True)
     return []
 
 
-def load_prompt(mode: str, prompt_file: Optional[str] = None) -> str:
+def load_prompt(
+    mode: str, prompt_file: Optional[str] = None, *, variant: str = "basico"
+) -> str:
     if prompt_file:
         path = Path(prompt_file)
     else:
         default_map = {
-            "rating": "rating_basico.md",
-            "tagging": "tagging_cliente.md",
-            "export": "export_job.md",
-            "tratamento": "tratamento_basico.md",
+            "rating": {
+                "basico": "rating_basico.md",
+                "avancado": "rating_avancado.md",
+            },
+            "tagging": {
+                "basico": "tagging_cliente.md",
+                "avancado": "tagging_avancado.md",
+            },
+            "export": {
+                "basico": "export_job.md",
+                "avancado": "export_avancado.md",
+            },
+            "tratamento": {
+                "basico": "tratamento_basico.md",
+                "avancado": "tratamento_avancado.md",
+            },
         }
-        fname = default_map.get(mode)
-        if not fname:
+        mode_entry = default_map.get(mode)
+        if not mode_entry:
             raise ValueError(f"Modo desconhecido para prompt: {mode}")
+
+        if isinstance(mode_entry, dict):
+            fname = mode_entry.get(variant) or mode_entry.get("basico")
+        else:
+            fname = mode_entry
+
+        if not fname:
+            raise ValueError(f"Prompt não configurado para modo={mode} variante={variant}")
         path = PROMPT_DIR / fname
 
     if not path.exists():
