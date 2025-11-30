@@ -49,6 +49,8 @@ em fluxos de tratamento em lote (rating, tagging, export).
   (ou outro comando personalizado).
 - A flag `--check-deps` dos hosts agora sinaliza quando o darktable foi encontrado via Flatpak ou por
   override em `DARKTABLE_CLI_CMD`.
+- Use `--check-darktable` para validar a comunicação com o catálogo e listar coleções/fotos antes de rodar
+  o LLM; o comando também informa quando o acesso ocorre via Flatpak.
 
 Use `python host/mcp_host_lmstudio.py --check-deps` para verificar rapidamente se `lua`, `darktable-cli`
 e a biblioteca `requests` estão acessíveis.
@@ -156,6 +158,9 @@ abaixo corresponde a um parâmetro aceito pelos hosts de linha de comando:
 
 3. **Verifique rapidamente o ambiente**
    - Rode `python host/mcp_host_lmstudio.py --check-deps` para validar binários (`lua`, `darktable-cli`) e o pacote `requests`.
+   - Para confirmar a conexão com o catálogo, rode `python host/mcp_host_ollama.py --check-darktable --limit 20` (ou use o botão
+     **Checar darktable** na GUI). O comando lista coleções conhecidas e traz uma amostra de fotos com paths completos, avisando
+     quando o acesso está vindo de uma instalação Flatpak.
 
 4. **Escolha e ajuste o host**
    - **Ollama**: confira `OLLAMA_URL` e `OLLAMA_MODEL` em `host/mcp_host_ollama.py` ou passe `--ollama-url`/`--model` na linha de comando.

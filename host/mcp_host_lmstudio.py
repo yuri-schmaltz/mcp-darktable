@@ -8,6 +8,7 @@ import requests
 
 from common import (
     BASE_DIR,
+    DT_SERVER_CMD,
     LOG_DIR,
     McpClient,
     VisionImage,
@@ -18,14 +19,13 @@ from common import (
     fetch_images,
     load_prompt,
     prepare_vision_payloads,
+    probe_darktable_state,
     save_log,
 )
 
 PROTOCOL_VERSION = "2024-11-05"
 APP_VERSION = "0.2.0"
 CLIENT_INFO = {"name": "darktable-mcp-lmstudio", "version": APP_VERSION}
-
-DT_SERVER_CMD = ["lua", str(BASE_DIR / "server" / "dt_mcp_server.lua")]
 
 # Config padrão do LM Studio (API OpenAI-like)
 LMSTUDIO_URL = "http://localhost:1234/v1/chat/completions"  # ajuste a porta se for diferente
@@ -96,6 +96,14 @@ def parse_args():
         "--check-deps",
         action="store_true",
         help="Só verifica dependências e sai (lua, darktable-cli, requests).",
+    )
+    p.add_argument(
+        "--check-darktable",
+        action="store_true",
+        help=(
+            "Valida a conectividade com o darktable, lista coleções e retorna uma amostra "
+            "das fotos disponíveis."
+        ),
     )
     p.add_argument("--mode", choices=["rating", "tagging", "export", "tratamento"], default="rating")
     p.add_argument("--source", choices=["all", "path", "tag", "collection"], default="all")
@@ -181,6 +189,66 @@ def list_available_collections(client):
 # --------- DEPENDÊNCIAS ---------
 def run_dependency_check():
     check_dependencies([*DEPENDENCY_BINARIES])
+
+
+def run_darktable_probe(args) -> bool:
+    print("[probe] Verificando darktable + dependências...")
+    probe = probe_darktable_state(
+        PROTOCOL_VERSION,
+        CLIENT_INFO,
+        min_rating=args.min_rating,
+        only_raw=bool(args.only_raw),
+        sample_limit=max(1, min(args.limit, 50)),
+    )
+
+    deps = probe.get("dependencies", {})
+    missing = probe.get("missing_dependencies", [])
+    for name, location in deps.items():
+        status = f"OK ({location})" if location else "NÃO encontrado"
+        print(f"  - {name}: {status}")
+
+    cli_cmd = deps.get("darktable-cli") or ""
+    if cli_cmd.startswith("flatpak run"):
+        print(
+            "  > darktable-cli disponível via Flatpak. Ajuste DARKTABLE_FLATPAK_PREFIX "
+            "caso use um prefixo alternativo."
+        )
+
+    if missing:
+        print("[probe] Dependências ausentes; instale-as e tente novamente.")
+        return False
+
+    if probe.get("error"):
+        print(f"[probe] Erro ao consultar darktable: {probe['error']}")
+        return False
+
+    server_info = probe.get("server_info") or {}
+    tools = probe.get("tools") or []
+    print(f"[probe] Servidor MCP inicializado: {server_info}")
+    print(f"[probe] Ferramentas disponíveis: {', '.join(tools) or 'nenhuma'}")
+
+    collections = probe.get("collections") or []
+    print(f"[probe] Coleções detectadas ({len(collections)}):")
+    for entry in collections[:10]:
+        path = entry.get("path")
+        count = entry.get("image_count", 0)
+        film = entry.get("film_roll")
+        film_suffix = f" [filme: {film}]" if film else ""
+        print(f"  - {path} ({count} imagens){film_suffix}")
+    if len(collections) > 10:
+        print(f"  ... +{len(collections) - 10} coleções")
+
+    total_images = probe.get("image_total", 0)
+    sample = probe.get("sample_images") or []
+    print(f"[probe] Imagens disponíveis: {total_images} (amostra de {len(sample)})")
+    for item in sample:
+        image_path = f"{item.get('path', '')}/{item.get('filename', '')}"
+        print(
+            f"  - id={item.get('id')} rating={item.get('rating')} raw={item.get('is_raw')} "
+            f"labels={','.join(item.get('colorlabels', []))} {image_path}"
+        )
+
+    return True
 
 
 # --------- MODOS ---------
@@ -488,6 +556,10 @@ def main():
 
     if args.check_deps:
         run_dependency_check()
+
+    if args.check_darktable:
+        ok = run_darktable_probe(args)
+        raise SystemExit(0 if ok else 1)
 
     missing = check_dependencies([*DEPENDENCY_BINARIES], exit_on_success=False)
     if missing:

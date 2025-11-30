@@ -9,11 +9,13 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Iterable, List, Optional
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOG_DIR = BASE_DIR / "logs"
 PROMPT_DIR = BASE_DIR / "config" / "prompts"
+DT_SERVER_CMD = ["lua", str(BASE_DIR / "server" / "dt_mcp_server.lua")]
 
 
 @dataclass
@@ -123,7 +125,7 @@ def _suggested_darktable_cli() -> str | None:
     return None
 
 
-def check_dependencies(binaries: Iterable[str], *, exit_on_success: bool = True) -> list[str]:
+def dependency_status(binaries: Iterable[str]) -> dict[str, str | None]:
     checks: dict[str, str | None] = {}
 
     for name in binaries:
@@ -131,6 +133,12 @@ def check_dependencies(binaries: Iterable[str], *, exit_on_success: bool = True)
             checks[name] = _suggested_darktable_cli()
         else:
             checks[name] = shutil.which(name)
+
+    return checks
+
+
+def check_dependencies(binaries: Iterable[str], *, exit_on_success: bool = True) -> list[str]:
+    checks = dependency_status(binaries)
 
     print("[check-deps] Resultado:")
     for name, location in checks.items():
@@ -242,6 +250,76 @@ def fetch_images(client: McpClient, args) -> list[dict]:
     result = client.call_tool(tool_name, params)
     images = result["content"][0]["json"]
     return images
+
+
+def probe_darktable_state(
+    protocol_version: str,
+    client_info: dict,
+    *,
+    min_rating: int = -2,
+    only_raw: bool = False,
+    sample_limit: int = 20,
+) -> dict:
+    """Executa uma sondagem rápida no darktable via MCP.
+
+    Retorna dependências encontradas, ferramentas disponíveis, coleções e
+    uma amostra das imagens conhecidas.
+    """
+
+    dep_map = dependency_status(["lua", "darktable-cli"])
+    missing = [name for name, location in dep_map.items() if not location]
+
+    result: dict = {
+        "dependencies": dep_map,
+        "missing_dependencies": missing,
+    }
+
+    if missing:
+        return result
+
+    try:
+        client = McpClient(DT_SERVER_CMD, protocol_version, client_info)
+    except FileNotFoundError as exc:  # noqa: BLE001
+        result["error"] = f"Falha ao iniciar servidor MCP: {exc}"
+        return result
+
+    try:
+        init = client.initialize()
+        tools = client.list_tools()
+        tool_names = [t.get("name") for t in tools.get("tools", []) if t.get("name")]
+
+        collections_raw = client.call_tool("list_available_collections", {})
+        collections_content = collections_raw.get("content") or []
+        first_content = collections_content[0] if collections_content else {}
+        collections = first_content.get("json", []) if isinstance(first_content, dict) else []
+        collections_sorted = sorted(collections, key=lambda c: c.get("path", ""))
+
+        probe_args = SimpleNamespace(
+            source="all",
+            min_rating=min_rating,
+            only_raw=only_raw,
+            path_contains=None,
+            tag=None,
+            collection=None,
+        )
+        images = fetch_images(client, probe_args)
+        sample = images[: max(1, min(sample_limit, len(images)))]
+
+        result.update(
+            {
+                "server_info": init.get("serverInfo", {}),
+                "tools": tool_names,
+                "collections": collections_sorted,
+                "sample_images": sample,
+                "image_total": len(images),
+            }
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001
+        result["error"] = str(exc)
+        return result
+    finally:
+        client.close()
 
 
 def save_log(mode: str, source: str, images: list[dict], model_answer: str, extra=None):
