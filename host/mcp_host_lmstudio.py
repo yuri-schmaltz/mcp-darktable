@@ -99,29 +99,25 @@ def _classify_multimodal_capability(metadata: dict, fallback_name: str) -> tuple
     return "unknown", "metadados não indicam visão"
 
 
-def ensure_model_supports_images(
-    model: str | None, url: str | None, text_only: bool
-) -> tuple[bool, str]:
+def ensure_model_supports_images(model: str | None, url: str | None, text_only: bool) -> None:
     if text_only:
-        return False, "modo texto solicitado"
+        return
 
     effective_model = model or LMSTUDIO_MODEL
     if not effective_model:
-        msg = (
+        print(
             "[vision-check] Modelo não especificado; não é possível validar suporte a imagens. "
             "Use --text-only se encontrar erros."
         )
-        print(msg)
-        return False, msg
+        return
 
     metadata = _fetch_lmstudio_model_metadata(effective_model, url)
     if not metadata:
-        msg = (
+        print(
             f"[vision-check] Não foi possível obter metadados para '{effective_model}'. "
             "Prosseguindo mesmo assim; use --text-only se o provider recusar imagens."
         )
-        print(msg)
-        return False, msg
+        return
 
     status, detail = _classify_multimodal_capability(metadata, effective_model)
     if status == "unsupported":
@@ -131,18 +127,12 @@ def ensure_model_supports_images(
         )
 
     if status == "supported":
-        message = (
-            f"[vision-check] Modelo '{effective_model}' validado como multimodal ({detail})."
+        print(f"[vision-check] Modelo '{effective_model}' validado como multimodal ({detail}).")
+    else:
+        print(
+            f"[vision-check] Suporte a imagens não pôde ser confirmado para '{effective_model}' "
+            f"({detail}). Continue apenas se tiver certeza de que o modelo é multimodal."
         )
-        print(message)
-        return True, message
-
-    message = (
-        f"[vision-check] Suporte a imagens não pôde ser confirmado para '{effective_model}' "
-        f"({detail}). Continue apenas se tiver certeza de que o modelo é multimodal."
-    )
-    print(message)
-    return False, message
 
 
 # --------- UTIL: chamada ao LM Studio ---------
@@ -201,7 +191,7 @@ def call_lmstudio_messages(messages, model=None, url=None):
 # --------- CLI ---------
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Host MCP para darktable + LM Studio (rating/tagging/export).",
+        description="Host MCP para darktable + LM Studio (rating/tagging/export/tratamento/completo).",
     )
     p.add_argument("--version", action="version", version=f"darktable-mcp-host {APP_VERSION}")
     p.add_argument(
@@ -217,7 +207,11 @@ def parse_args():
             "das fotos disponíveis."
         ),
     )
-    p.add_argument("--mode", choices=["rating", "tagging", "export", "tratamento"], default="rating")
+    p.add_argument(
+        "--mode",
+        choices=["rating", "tagging", "export", "tratamento", "completo"],
+        default="rating",
+    )
     p.add_argument("--source", choices=["all", "path", "tag", "collection"], default="all")
     p.add_argument("--path-contains", help="Filtro por trecho de path (source=path).")
     p.add_argument("--tag", help="Filtro por tag (source=tag).")
@@ -236,11 +230,17 @@ def parse_args():
     p.add_argument("--lm-url", help="URL do servidor LM Studio (OpenAI API).")
     p.add_argument(
         "--target-dir",
-        help="Diretório de saída para export (obrigatório em --mode export).",
+        help="Diretório de saída para export (obrigatório em --mode export ou completo).",
     )
     p.add_argument(
         "--prompt-file",
         help="Override do prompt (caminho para .md).",
+    )
+    p.add_argument(
+        "--prompt-variant",
+        choices=["basico", "avancado"],
+        default="basico",
+        help="Escolhe entre prompts básicos ou avançados para todos os passos.",
     )
     p.add_argument(
         "--text-only",
@@ -373,7 +373,7 @@ def run_mode_rating(client, args):
         return
 
     sample = images[: args.limit]
-    system_prompt = load_prompt("rating", args.prompt_file)
+    system_prompt = load_prompt("rating", args.prompt_file, variant=args.prompt_variant)
     vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
     if vision_errors:
         print("[rating] Avisos ao carregar imagens:")
@@ -439,7 +439,7 @@ def run_mode_tagging(client, args):
         return
 
     sample = images[: args.limit]
-    system_prompt = load_prompt("tagging", args.prompt_file)
+    system_prompt = load_prompt("tagging", args.prompt_file, variant=args.prompt_variant)
     vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
     if vision_errors:
         print("[tagging] Avisos ao carregar imagens:")
@@ -519,7 +519,7 @@ def run_mode_export(client, args):
         return
 
     sample = images[: args.limit]
-    system_prompt = load_prompt("export", args.prompt_file)
+    system_prompt = load_prompt("export", args.prompt_file, variant=args.prompt_variant)
     vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
     if vision_errors:
         print("[export] Avisos ao carregar imagens:")
@@ -610,7 +610,7 @@ def run_mode_tratamento(client, args):
         return
 
     sample = images[: args.limit]
-    system_prompt = load_prompt("tratamento", args.prompt_file)
+    system_prompt = load_prompt("tratamento", args.prompt_file, variant=args.prompt_variant)
     vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
     if vision_errors:
         print("[tratamento] Avisos ao carregar imagens:")
@@ -662,6 +662,21 @@ def run_mode_tratamento(client, args):
     print(plano)
 
 
+# --------- WORKFLOW COMPLETO ---------
+def run_mode_completo(client, args):
+    if not args.target_dir:
+        raise ValueError("--target-dir é obrigatório em --mode completo")
+
+    print("[completo] Iniciando pipeline: rating -> tagging -> tratamento -> export")
+    if args.dry_run:
+        print("[completo] DRY-RUN ativo: nenhuma alteração permanente será aplicada.")
+
+    run_mode_rating(client, args)
+    run_mode_tagging(client, args)
+    run_mode_tratamento(client, args)
+    run_mode_export(client, args)
+
+
 # --------- MAIN ---------
 def main():
     args = parse_args()
@@ -681,17 +696,8 @@ def main():
         )
         raise SystemExit(1)
 
-    vision_supported, _ = (False, "")
     if not args.check_darktable and not args.list_collections:
-        vision_supported, _ = ensure_model_supports_images(
-            args.model, args.lm_url, args.text_only
-        )
-        if not args.text_only and not vision_supported:
-            print(
-                "[vision-check] Imagens desabilitadas porque o suporte multimodal não foi "
-                "confirmado. Use --text-only para permanecer em modo texto."
-            )
-            args.text_only = True
+        ensure_model_supports_images(args.model, args.lm_url, args.text_only)
 
     LOG_DIR.mkdir(exist_ok=True)
 
@@ -732,6 +738,8 @@ def main():
             run_mode_export(client, args)
         elif args.mode == "tratamento":
             run_mode_tratamento(client, args)
+        elif args.mode == "completo":
+            run_mode_completo(client, args)
         else:
             print("Modo desconhecido:", args.mode)
 

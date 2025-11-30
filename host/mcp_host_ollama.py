@@ -149,29 +149,25 @@ def _classify_ollama_multimodal(metadata: dict, fallback_name: str) -> tuple[str
     return "unknown", "metadados não indicam visão"
 
 
-def ensure_ollama_model_supports_images(
-    model: str | None, url: str | None, text_only: bool
-) -> tuple[bool, str]:
+def ensure_ollama_model_supports_images(model: str | None, url: str | None, text_only: bool) -> None:
     if text_only:
-        return False, "modo texto solicitado"
+        return
 
     effective_model = model or OLLAMA_MODEL
     if not effective_model:
-        msg = (
+        print(
             "[vision-check] Modelo não especificado; não é possível validar suporte a imagens. "
             "Use --text-only se encontrar erros."
         )
-        print(msg)
-        return False, msg
+        return
 
     metadata = _fetch_ollama_model_metadata(effective_model, url)
     if not metadata:
-        msg = (
+        print(
             f"[vision-check] Não foi possível obter metadados para '{effective_model}'. "
             "Prosseguindo mesmo assim; use --text-only se o provider recusar imagens."
         )
-        print(msg)
-        return False, msg
+        return
 
     status, detail = _classify_ollama_multimodal(metadata, effective_model)
     if status == "unsupported":
@@ -181,25 +177,23 @@ def ensure_ollama_model_supports_images(
         )
 
     if status == "supported":
-        message = (
-            f"[vision-check] Modelo '{effective_model}' validado como multimodal ({detail})."
+        print(f"[vision-check] Modelo '{effective_model}' validado como multimodal ({detail}).")
+    else:
+        print(
+            f"[vision-check] Suporte a imagens não pôde ser confirmado para '{effective_model}' "
+            f"({detail}). Continue apenas se tiver certeza de que o modelo é multimodal."
         )
-        print(message)
-        return True, message
-
-    message = (
-        f"[vision-check] Suporte a imagens não pôde ser confirmado para '{effective_model}' "
-        f"({detail}). Continue apenas se tiver certeza de que o modelo é multimodal."
-    )
-    print(message)
-    return False, message
 # --------- CLI ---------
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Host MCP para darktable + Ollama (rating/tagging/export)."
+        description="Host MCP para darktable + Ollama (rating/tagging/export/tratamento/completo)."
     )
     p.add_argument("--version", action="version", version=f"darktable-mcp-host {APP_VERSION}")
-    p.add_argument("--mode", choices=["rating", "tagging", "export", "tratamento"], default="rating")
+    p.add_argument(
+        "--mode",
+        choices=["rating", "tagging", "export", "tratamento", "completo"],
+        default="rating",
+    )
     p.add_argument("--source", choices=["all", "path", "tag", "collection"], default="all")
     p.add_argument("--path-contains", help="Filtro por trecho de path (source=path).")
     p.add_argument("--tag", help="Filtro por tag (source=tag).")
@@ -218,11 +212,17 @@ def parse_args():
     p.add_argument("--ollama-url", help="URL do servidor Ollama.")
     p.add_argument(
         "--target-dir",
-        help="Diretório de saída para export (obrigatório em --mode export).",
+        help="Diretório de saída para export (obrigatório em --mode export ou completo).",
     )
     p.add_argument(
         "--prompt-file",
         help="Override do prompt (caminho para .md)."
+    )
+    p.add_argument(
+        "--prompt-variant",
+        choices=["basico", "avancado"],
+        default="basico",
+        help="Escolhe entre prompts básicos ou avançados para todos os passos.",
     )
     p.add_argument(
         "--check-deps",
@@ -298,7 +298,7 @@ def run_mode_rating(client, args):
         return
 
     sample = images[: args.limit]
-    system_prompt = load_prompt("rating", args.prompt_file)
+    system_prompt = load_prompt("rating", args.prompt_file, variant=args.prompt_variant)
     vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
     if vision_errors:
         print("[rating] Avisos ao carregar imagens:")
@@ -359,7 +359,7 @@ def run_mode_tagging(client, args):
         return
 
     sample = images[: args.limit]
-    system_prompt = load_prompt("tagging", args.prompt_file)
+    system_prompt = load_prompt("tagging", args.prompt_file, variant=args.prompt_variant)
     vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
     if vision_errors:
         print("[tagging] Avisos ao carregar imagens:")
@@ -430,7 +430,7 @@ def run_mode_tratamento(client, args):
         return
 
     sample = images[: args.limit]
-    system_prompt = load_prompt("tratamento", args.prompt_file)
+    system_prompt = load_prompt("tratamento", args.prompt_file, variant=args.prompt_variant)
     vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
 
     if vision_errors:
@@ -463,6 +463,20 @@ def run_mode_tratamento(client, args):
     )
     print(f"[tratamento] Log salvo em: {log_file}")
 
+    try:
+        parsed = json.loads(answer)
+    except Exception as exc:
+        print("[tratamento] Erro ao parsear JSON:", exc)
+        return
+
+    plano = parsed.get("plano") or parsed.get("plan")
+    if not plano:
+        print("[tratamento] Nenhum plano retornado pelo modelo.")
+        return
+
+    print("[tratamento] Plano sugerido:")
+    print(plano)
+
     if args.dry_run:
         print("[tratamento] DRY-RUN: mantendo somente a sugestão do modelo.")
 
@@ -479,7 +493,7 @@ def run_mode_export(client, args):
         return
 
     sample = images[: args.limit]
-    system_prompt = load_prompt("export", args.prompt_file)
+    system_prompt = load_prompt("export", args.prompt_file, variant=args.prompt_variant)
     vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
     if vision_errors:
         print("[export] Avisos ao carregar imagens:")
@@ -554,6 +568,21 @@ def run_mode_export(client, args):
     stored_log = append_export_result_to_log(log_file, res)
     if stored_log != log_file:
         print(f"[export] Resultado de export salvo em log adicional: {stored_log}")
+
+
+# --------- WORKFLOW COMPLETO ---------
+def run_mode_completo(client, args):
+    if not args.target_dir:
+        raise ValueError("--target-dir é obrigatório em --mode completo")
+
+    print("[completo] Iniciando pipeline: rating -> tagging -> tratamento -> export")
+    if args.dry_run:
+        print("[completo] DRY-RUN ativo: nenhuma alteração permanente será aplicada.")
+
+    run_mode_rating(client, args)
+    run_mode_tagging(client, args)
+    run_mode_tratamento(client, args)
+    run_mode_export(client, args)
 
 
 # --------- DEPENDÊNCIAS ---------
@@ -641,17 +670,8 @@ def main():
             )
             raise SystemExit(1)
 
-    vision_supported, _ = (False, "")
     if not args.check_darktable and not args.list_collections and not args.download_model:
-        vision_supported, _ = ensure_ollama_model_supports_images(
-            args.model, args.ollama_url, args.text_only
-        )
-        if not args.text_only and not vision_supported:
-            print(
-                "[vision-check] Imagens desabilitadas porque o suporte multimodal não foi "
-                "confirmado. Use --text-only para permanecer em modo texto."
-            )
-            args.text_only = True
+        ensure_ollama_model_supports_images(args.model, args.ollama_url, args.text_only)
 
     # Apenas garante que diretórios existem
     LOG_DIR.mkdir(exist_ok=True)
@@ -706,6 +726,8 @@ def main():
             run_mode_export(client, args)
         elif args.mode == "tratamento":
             run_mode_tratamento(client, args)
+        elif args.mode == "completo":
+            run_mode_completo(client, args)
         else:
             print("Modo desconhecido:", args.mode)
 
