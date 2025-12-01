@@ -357,9 +357,8 @@ class MCPGui(QMainWindow):
 
         config_form.addRow("Path contém:", self.path_contains_edit)
         config_form.addRow("Tag:", self.tag_edit)
-        config_form.addRow("Coleção:", self.collection_edit)
 
-        self.darktable_probe_button = QPushButton("Checar darktable")
+        self.darktable_probe_button = QPushButton()
         self.darktable_probe_button.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
         )
@@ -367,16 +366,16 @@ class MCPGui(QMainWindow):
             "Testa a conexão com o darktable, lista coleções e mostra uma amostra das fotos encontradas"
         )
         self.darktable_probe_button.clicked.connect(self._probe_darktable_connection)
-        self._standardize_button(self.darktable_probe_button, width=170)
+        self._standardize_button(self.darktable_probe_button, width=40)
 
-        darktable_row_widget = QWidget()
-        darktable_row_layout = QHBoxLayout(darktable_row_widget)
-        darktable_row_layout.setContentsMargins(0, 0, 0, 0)
-        darktable_row_layout.setSpacing(10)
-        darktable_row_layout.addWidget(self.darktable_probe_button)
-        darktable_row_layout.addStretch()
+        collection_row_widget = QWidget()
+        collection_row_layout = QHBoxLayout(collection_row_widget)
+        collection_row_layout.setContentsMargins(0, 0, 0, 0)
+        collection_row_layout.setSpacing(10)
+        collection_row_layout.addWidget(self.collection_edit, stretch=1)
+        collection_row_layout.addWidget(self.darktable_probe_button)
 
-        config_form.addRow("Catálogo:", darktable_row_widget)
+        config_form.addRow("Coleção:", collection_row_widget)
 
         # Prompt custom + botões
         prompt_row_widget = QWidget()
