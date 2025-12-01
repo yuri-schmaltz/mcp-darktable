@@ -17,7 +17,7 @@ from typing import Callable, Optional
 import requests
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -292,6 +292,9 @@ class MCPGui(QMainWindow):
         config_form.setContentsMargins(0, 0, 0, 0)
         config_form.setHorizontalSpacing(16)
         config_form.setVerticalSpacing(12)
+        config_form.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+        )
         config_form.setLabelAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
@@ -357,26 +360,27 @@ class MCPGui(QMainWindow):
 
         config_form.addRow("Path contém:", self.path_contains_edit)
         config_form.addRow("Tag:", self.tag_edit)
-        config_form.addRow("Coleção:", self.collection_edit)
 
-        self.darktable_probe_button = QPushButton("Checar darktable")
-        self.darktable_probe_button.setIcon(
-            self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
-        )
+        self.darktable_probe_button = QPushButton()
+        self.darktable_probe_button.setIcon(self._build_check_icon())
         self.darktable_probe_button.setToolTip(
             "Testa a conexão com o darktable, lista coleções e mostra uma amostra das fotos encontradas"
         )
         self.darktable_probe_button.clicked.connect(self._probe_darktable_connection)
-        self._standardize_button(self.darktable_probe_button, width=170)
+        self._standardize_button(self.darktable_probe_button, width=40)
 
-        darktable_row_widget = QWidget()
-        darktable_row_layout = QHBoxLayout(darktable_row_widget)
-        darktable_row_layout.setContentsMargins(0, 0, 0, 0)
-        darktable_row_layout.setSpacing(10)
-        darktable_row_layout.addWidget(self.darktable_probe_button)
-        darktable_row_layout.addStretch()
+        collection_row_widget = QWidget()
+        collection_row_layout = QHBoxLayout(collection_row_widget)
+        collection_row_layout.setContentsMargins(0, 0, 0, 0)
+        collection_row_layout.setSpacing(10)
+        collection_row_widget.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Preferred
+        )
+        collection_row_layout.addWidget(self.collection_edit, stretch=1)
+        collection_row_layout.addStretch()
+        collection_row_layout.addWidget(self.darktable_probe_button)
 
-        config_form.addRow("Catálogo:", darktable_row_widget)
+        config_form.addRow("Coleção:", collection_row_widget)
 
         # Prompt custom + botões
         prompt_row_widget = QWidget()
@@ -679,6 +683,24 @@ class MCPGui(QMainWindow):
             if candidate.exists():
                 self._set_current_image_preview(candidate)
                 return
+
+    def _build_check_icon(self) -> QIcon:
+        pixmap = QPixmap(22, 22)
+        pixmap.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QColor("#2da86f"))
+
+        font: QFont = painter.font()
+        font.setBold(True)
+        font.setPointSize(12)
+        painter.setFont(font)
+
+        painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, "V")
+        painter.end()
+
+        return QIcon(pixmap)
 
     def _standardize_button(self, button: QPushButton, *, width: int = 130) -> None:
         button.setMinimumWidth(width)
