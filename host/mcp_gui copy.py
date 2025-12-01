@@ -6,6 +6,7 @@ para executar os hosts mostrando o progresso das atividades.
 """
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -16,7 +17,7 @@ from typing import Callable, Optional
 import requests
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QIcon, QPixmap, QResizeEvent
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -35,12 +36,12 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QRadioButton,
     QSizePolicy,
+    QSpinBox,
     QStyle,
     QStatusBar,
     QTextEdit,
     QVBoxLayout,
     QWidget,
-    QSpinBox,
 )
 
 from common import probe_darktable_state
@@ -603,7 +604,7 @@ class MCPGui(QMainWindow):
         return group
 
     # ----------------------------- Barra de Status --------------------------
-
+        
     def _build_status_bar(self) -> None:
         status_bar = QStatusBar()
         status_bar.setSizeGripEnabled(False)
@@ -899,41 +900,8 @@ class MCPGui(QMainWindow):
     def _set_status_ui(self, text: str) -> None:
         self.progress.setFormat(text)
 
-    def _set_controls_enabled(self, enabled: bool) -> None:
-        """Ativa/desativa os controles principais durante tarefas assíncronas."""
-        # Botões principais
-        self.run_button.setEnabled(enabled)
-        self.check_models_button.setEnabled(enabled)
-        self.darktable_probe_button.setEnabled(enabled)
-
-        # Campos de configuração
-        for widget in (
-            self.mode_combo,
-            self.source_combo,
-            self.path_contains_edit,
-            self.tag_edit,
-            self.collection_edit,
-            self.prompt_edit,
-            self.prompt_button,
-            self.prompt_generate_button,
-            self.target_edit,
-            self.target_button,
-            self.min_rating_spin,
-            self.limit_spin,
-            self.only_raw_check,
-            self.dry_run_check,
-            self.host_ollama,
-            self.host_lmstudio,
-            self.model_combo,
-            self.url_edit,
-        ):
-            widget.setEnabled(enabled)
-
     @Slot(bool)
     def _toggle_progress(self, running: bool) -> None:
-        # Travar/destravar UI
-        self._set_controls_enabled(not running)
-
         if running:
             self.progress.setRange(0, 0)
         else:
@@ -941,7 +909,7 @@ class MCPGui(QMainWindow):
             self.progress.setValue(0)
             self.progress.setFormat("Pronto.")
 
-    def resizeEvent(self, event: QResizeEvent) -> None:  # type: ignore[override]
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
         self._refresh_image_preview()
 
@@ -1005,15 +973,6 @@ class MCPGui(QMainWindow):
             raise ValueError("Coleção é obrigatória quando a fonte é 'collection'.")
         if mode in {"export", "completo"} and not target_dir:
             raise ValueError("Diretório de export é obrigatório em modo export ou completo.")
-
-        # validações adicionais
-        if prompt_file and not prompt_file.is_file():
-            raise ValueError(f"Arquivo de prompt não encontrado: {prompt_file}")
-
-        if target_dir:
-            export_dir = Path(target_dir).expanduser()
-            if not export_dir.is_dir():
-                raise ValueError(f"Diretório de export inválido: {export_dir}")
 
         model_default = OLLAMA_MODEL if host == "ollama" else LMSTUDIO_MODEL
         url_default = OLLAMA_URL if host == "ollama" else LMSTUDIO_URL
@@ -1140,15 +1099,8 @@ class MCPGui(QMainWindow):
     def _fetch_ollama_models(self, url: str) -> list[str]:
         base = url.rstrip("/") or OLLAMA_URL
         tags_url = f"{base}/api/tags"
-
-        try:
-            resp = requests.get(tags_url, timeout=5)
-            resp.raise_for_status()
-        except requests.exceptions.RequestException as exc:
-            raise RuntimeError(
-                f"Falha ao consultar modelos do Ollama em {tags_url}. "
-                "Verifique a URL e se o servidor está em execução."
-            ) from exc
+        resp = requests.get(tags_url, timeout=5)
+        resp.raise_for_status()
 
         data = resp.json()
         models = [m.get("name", "") for m in data.get("models", []) if m.get("name")]
@@ -1165,15 +1117,8 @@ class MCPGui(QMainWindow):
                 base = base + "/v1"
 
         models_url = f"{base}/models"
-
-        try:
-            resp = requests.get(models_url, timeout=5)
-            resp.raise_for_status()
-        except requests.exceptions.RequestException as exc:
-            raise RuntimeError(
-                f"Falha ao consultar modelos do LM Studio em {models_url}. "
-                "Verifique a URL e se o servidor está em execução."
-            ) from exc
+        resp = requests.get(models_url, timeout=5)
+        resp.raise_for_status()
 
         data = resp.json()
         items = data.get("data") or []
