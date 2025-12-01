@@ -303,28 +303,28 @@ class MCPGui(QMainWindow):
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["export", "rating", "tagging", "tratamento", "completo"])
         self.mode_combo.setToolTip(
-            "Define o tipo de operação: atribuir notas, sugerir tags, exportar, tratamento"
-            " ou o fluxo completo (rating→tagging→tratamento→export)."
+            "Define o tipo de operação: atribuir notas, sugerir tags, exportar, tratamento "
+            "ou o fluxo completo (rating→tagging→tratamento→export)."
         )
 
         self.source_combo = QComboBox()
         self.source_combo.addItems(["all", "collection", "path", "tag"])
         self.source_combo.setToolTip(
-            "Escolhe de onde as imagens serão obtidas: todas, por caminho, por tag ou coleção"
+            "Escolhe de onde as imagens serão obtidas: todas, por caminho, por tag ou coleção."
         )
 
         self.min_rating_spin = QSpinBox()
         self.min_rating_spin.setRange(-2, 5)
         self.min_rating_spin.setValue(DEFAULT_MIN_RATING)
         self.min_rating_spin.setToolTip(
-            "Nota mínima das imagens que serão consideradas (de -2 a 5)"
+            "Nota mínima das imagens que serão consideradas (de -2 a 5)."
         )
 
         self.limit_spin = QSpinBox()
         self.limit_spin.setRange(1, 2000)
         self.limit_spin.setValue(DEFAULT_LIMIT)
         self.limit_spin.setToolTip(
-            "Quantidade máxima de imagens processadas nesta execução"
+            "Quantidade máxima de imagens processadas nesta execução."
         )
 
         config_form.addRow("Modo:", self.mode_combo)
@@ -341,9 +341,9 @@ class MCPGui(QMainWindow):
         self.target_edit = QLineEdit()
 
         self.prompt_edit.setToolTip(
-            "Arquivo Markdown opcional com instruções adicionais para o modelo"
+            "Arquivo Markdown opcional com instruções adicionais para o modelo."
         )
-        self.target_edit.setToolTip("Diretório onde as exportações serão salvas")
+        self.target_edit.setToolTip("Diretório onde as exportações serão salvas.")
 
         for w in (
             self.path_contains_edit,
@@ -363,7 +363,7 @@ class MCPGui(QMainWindow):
         )
         self.darktable_probe_button.setIconSize(QSize(18, 18))
         self.darktable_probe_button.setToolTip(
-            "Testa a conexão com o darktable, lista coleções e mostra uma amostra das fotos encontradas"
+            "Testa a conexão com o darktable, lista coleções e mostra uma amostra das fotos encontradas."
         )
         self.darktable_probe_button.clicked.connect(self._probe_darktable_connection)
         self._standardize_button(self.darktable_probe_button, width=42)
@@ -392,7 +392,7 @@ class MCPGui(QMainWindow):
         self.prompt_button.setIconSize(QSize(18, 18))
         self._standardize_button(self.prompt_button, width=42)
         self.prompt_button.clicked.connect(self._choose_prompt_file)
-        self.prompt_button.setToolTip("Seleciona um arquivo de prompt em Markdown")
+        self.prompt_button.setToolTip("Seleciona um arquivo de prompt em Markdown.")
         prompt_row_layout.addWidget(self.prompt_button)
 
         self.prompt_generate_button = QPushButton()
@@ -402,7 +402,7 @@ class MCPGui(QMainWindow):
         self.prompt_generate_button.setIconSize(QSize(18, 18))
         self._standardize_button(self.prompt_generate_button, width=42)
         self.prompt_generate_button.clicked.connect(self._generate_prompt_template)
-        self.prompt_generate_button.setToolTip("Gera um modelo de prompt padrão")
+        self.prompt_generate_button.setToolTip("Gera um modelo de prompt padrão.")
         prompt_row_layout.addWidget(self.prompt_generate_button)
 
         prompt_row_layout.addStretch()
@@ -423,7 +423,7 @@ class MCPGui(QMainWindow):
         self._standardize_button(self.target_button, width=42)
         self.target_button.clicked.connect(self._choose_target_dir)
         self.target_button.setToolTip(
-            "Seleciona a pasta onde os arquivos exportados serão gravados"
+            "Seleciona a pasta onde os arquivos exportados serão gravados."
         )
         target_row_layout.addWidget(self.target_button)
         target_row_layout.addStretch()
@@ -440,10 +440,10 @@ class MCPGui(QMainWindow):
         self.dry_run_check = QCheckBox("Dry-run")
         self.dry_run_check.setChecked(True)
         self.only_raw_check.setToolTip(
-            "Processa somente arquivos RAW (ignora JPEGs e derivados)"
+            "Processa somente arquivos RAW (ignora JPEGs e derivados)."
         )
         self.dry_run_check.setToolTip(
-            "Simula a execução sem escrever arquivos ou alterar metadados"
+            "Simula a execução sem escrever arquivos ou alterar metadados."
         )
 
         flags_layout.addWidget(self.only_raw_check)
@@ -451,6 +451,14 @@ class MCPGui(QMainWindow):
         flags_layout.addStretch()
 
         config_form.addRow("Execução:", flags_widget)
+
+        # Imagens (multimodal ou somente texto)
+        self.attach_images_check = QCheckBox("Enviar imagens ao modelo (multimodal)")
+        self.attach_images_check.setChecked(True)
+        self.attach_images_check.setToolTip(
+            "Quando desmarcado, o host enviará apenas metadados e texto ao modelo, sem anexar arquivos de imagem."
+        )
+        config_form.addRow("Imagens:", self.attach_images_check)
 
         # ------------------------------- Seção LLM ------------------------------
 
@@ -460,9 +468,9 @@ class MCPGui(QMainWindow):
         self.host_lmstudio = QRadioButton("LM Studio")
         self.host_group.addButton(self.host_ollama)
         self.host_group.addButton(self.host_lmstudio)
-        self.host_ollama.setToolTip("Usa um servidor Ollama para executar o modelo")
+        self.host_ollama.setToolTip("Usa um servidor Ollama para executar o modelo.")
         self.host_lmstudio.setToolTip(
-            "Usa um servidor LM Studio para executar o modelo"
+            "Usa um servidor LM Studio para executar o modelo."
         )
 
         host_widget = QWidget()
@@ -476,15 +484,15 @@ class MCPGui(QMainWindow):
         self.model_combo = QComboBox()
         self.model_combo.setEditable(True)
         self.url_edit = QLineEdit()
-        self.url_edit.setToolTip("URL base do servidor LLM escolhido")
-        self.model_combo.setToolTip("Nome do modelo carregado no servidor selecionado")
+        self.url_edit.setToolTip("URL base do servidor LLM escolhido.")
+        self.model_combo.setToolTip("Nome do modelo carregado no servidor selecionado.")
         self.check_models_button = QPushButton()
         self.check_models_button.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload)
         )
         self.check_models_button.setIconSize(QSize(18, 18))
         self.check_models_button.setToolTip(
-            "Verifica a conectividade com o servidor selecionado e lista modelos disponíveis"
+            "Verifica a conectividade com o servidor selecionado e lista modelos disponíveis."
         )
         self.check_models_button.clicked.connect(
             self._check_connection_and_fetch_models
@@ -493,6 +501,14 @@ class MCPGui(QMainWindow):
         self._style_form_field(self.url_edit)
         self._style_form_field(self.model_combo)
         self._standardize_button(self.check_models_button, width=42)
+
+        # Nível de prompt (básico/avançado)
+        self.prompt_variant_combo = QComboBox()
+        self.prompt_variant_combo.addItems(["Básico", "Avançado"])
+        self.prompt_variant_combo.setToolTip(
+            "Define a complexidade do prompt padrão utilizado quando não há arquivo .md personalizado."
+        )
+        self._style_form_field(self.prompt_variant_combo)
 
         model_row_widget = QWidget()
         model_row_layout = QHBoxLayout(model_row_widget)
@@ -518,6 +534,7 @@ class MCPGui(QMainWindow):
         config_form.addRow("Framework:", host_widget)
         config_form.addRow("URL:", url_row_widget)
         config_form.addRow("Modelo:", model_row_widget)
+        config_form.addRow("Nível de prompt:", self.prompt_variant_combo)
 
         # Ajusta largura de todos os rótulos desse formulário
         self._sync_form_label_widths(config_form)
@@ -547,7 +564,7 @@ class MCPGui(QMainWindow):
 
         clear_log = QPushButton("Limpar log")
         self._standardize_button(clear_log)
-        clear_log.setToolTip("Remove o conteúdo exibido acima")
+        clear_log.setToolTip("Remove o conteúdo exibido acima.")
         clear_log.clicked.connect(self.log_text.clear)
 
         log_layout.addWidget(self.log_text)
@@ -566,7 +583,7 @@ class MCPGui(QMainWindow):
         )
         self.run_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.run_button.setMinimumWidth(0)
-        self.run_button.setToolTip("Inicia o host com os parâmetros configurados")
+        self.run_button.setToolTip("Inicia o host com os parâmetros configurados.")
         self.run_button.clicked.connect(self.run_host)
 
         run_row = QHBoxLayout()
@@ -804,6 +821,10 @@ class MCPGui(QMainWindow):
         self.url_edit.setPlaceholderText("http://localhost:11434 ou http://localhost:1234/v1")
         self.log_text.setPlaceholderText("Logs e progresso serão exibidos aqui...")
 
+        # padrões de novo comportamento
+        self.attach_images_check.setChecked(True)
+        self.prompt_variant_combo.setCurrentIndex(0)
+
         self._apply_host_defaults()
         self._update_source_fields(self.source_combo.currentText())
         self._update_mode_fields(self.mode_combo.currentText())
@@ -841,19 +862,19 @@ class MCPGui(QMainWindow):
         self.collection_edit.setEnabled(is_collection)
 
         self.path_contains_edit.setToolTip(
-            "Filtrar apenas por caminho contendo este trecho"
+            "Filtrar apenas por caminho contendo este trecho."
             if is_path
-            else "Disponível somente quando a fonte for 'path'"
+            else "Disponível somente quando a fonte for 'path'."
         )
         self.tag_edit.setToolTip(
-            "Tag existente no darktable"
+            "Tag existente no darktable."
             if is_tag
-            else "Disponível somente quando a fonte for 'tag'"
+            else "Disponível somente quando a fonte for 'tag'."
         )
         self.collection_edit.setToolTip(
-            "Coleção/pasta já presente no darktable"
+            "Coleção/pasta já presente no darktable."
             if is_collection
-            else "Disponível somente quando a fonte for 'collection'"
+            else "Disponível somente quando a fonte for 'collection'."
         )
 
     def _update_mode_fields(self, mode: str) -> None:
@@ -863,9 +884,9 @@ class MCPGui(QMainWindow):
         self.target_button.setEnabled(is_export)
 
         tooltip = (
-            "Necessário para export ou modo completo"
+            "Necessário para export ou modo completo."
             if is_export
-            else "Habilite ao selecionar modo export ou completo"
+            else "Habilite ao selecionar modo export ou completo."
         )
         self.target_edit.setToolTip(tooltip)
         self.target_button.setToolTip(tooltip)
@@ -938,10 +959,12 @@ class MCPGui(QMainWindow):
             self.limit_spin,
             self.only_raw_check,
             self.dry_run_check,
+            self.attach_images_check,
             self.host_ollama,
             self.host_lmstudio,
             self.model_combo,
             self.url_edit,
+            self.prompt_variant_combo,
         ):
             widget.setEnabled(enabled)
 
@@ -1034,6 +1057,15 @@ class MCPGui(QMainWindow):
         model_default = OLLAMA_MODEL if host == "ollama" else LMSTUDIO_MODEL
         url_default = OLLAMA_URL if host == "ollama" else LMSTUDIO_URL
 
+        # mapeia nível de prompt (básico/avançado)
+        prompt_variant_text = ""
+        if hasattr(self, "prompt_variant_combo"):
+            prompt_variant_text = self.prompt_variant_combo.currentText().strip().lower()
+        prompt_variant = "avancado" if prompt_variant_text.startswith("av") else "basico"
+
+        # multimodal vs apenas texto
+        text_only = not bool(self.attach_images_check.isChecked())
+
         return RunConfig(
             host=host,
             mode=mode,
@@ -1049,6 +1081,8 @@ class MCPGui(QMainWindow):
             llm_url=self.url_edit.text().strip() or url_default,
             target_dir=target_dir,
             prompt_file=prompt_file,
+            prompt_variant=prompt_variant,
+            text_only=text_only,
             extra_flags=[],
         )
 

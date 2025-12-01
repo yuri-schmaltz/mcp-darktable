@@ -6,7 +6,6 @@ para executar os hosts mostrando o progresso das atividades.
 """
 from __future__ import annotations
 
-import json
 import re
 import subprocess
 import sys
@@ -16,8 +15,8 @@ from typing import Callable, Optional
 
 import requests
 
-from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtCore import Qt, Signal, Slot, QSize
+from PySide6.QtGui import QIcon, QPixmap, QResizeEvent
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -36,12 +35,12 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QRadioButton,
     QSizePolicy,
-    QSpinBox,
     QStyle,
     QStatusBar,
     QTextEdit,
     QVBoxLayout,
     QWidget,
+    QSpinBox,
 )
 
 from common import probe_darktable_state
@@ -292,9 +291,6 @@ class MCPGui(QMainWindow):
         config_form.setContentsMargins(0, 0, 0, 0)
         config_form.setHorizontalSpacing(16)
         config_form.setVerticalSpacing(12)
-        config_form.setFieldGrowthPolicy(
-            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
-        )
         config_form.setLabelAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
@@ -358,10 +354,6 @@ class MCPGui(QMainWindow):
         ):
             self._style_form_field(w)
 
-        # Permite que o campo encolha para acomodar os botões de seleção
-        # sem sobrepor os ícones à direita.
-        self.prompt_edit.setMinimumWidth(0)
-
         config_form.addRow("Path contém:", self.path_contains_edit)
         config_form.addRow("Tag:", self.tag_edit)
 
@@ -369,17 +361,19 @@ class MCPGui(QMainWindow):
         self.darktable_probe_button.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
         )
+        self.darktable_probe_button.setIconSize(QSize(18, 18))
         self.darktable_probe_button.setToolTip(
             "Testa a conexão com o darktable, lista coleções e mostra uma amostra das fotos encontradas"
         )
         self.darktable_probe_button.clicked.connect(self._probe_darktable_connection)
-        self._standardize_button(self.darktable_probe_button, width=40)
+        self._standardize_button(self.darktable_probe_button, width=42)
 
         collection_row_widget = QWidget()
         collection_row_layout = QHBoxLayout(collection_row_widget)
         collection_row_layout.setContentsMargins(0, 0, 0, 0)
         collection_row_layout.setSpacing(10)
         collection_row_layout.addWidget(self.collection_edit, stretch=1)
+        collection_row_layout.addStretch()
         collection_row_layout.addWidget(self.darktable_probe_button)
 
         config_form.addRow("Coleção:", collection_row_widget)
@@ -391,14 +385,24 @@ class MCPGui(QMainWindow):
         prompt_row_layout.setSpacing(12)
         prompt_row_layout.addWidget(self.prompt_edit, stretch=1)
 
-        self.prompt_button = QPushButton("Selecionar")
-        self._standardize_button(self.prompt_button, width=78)
+        self.prompt_button = QPushButton()
+        self.prompt_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton)
+        )
+        self.prompt_button.setIconSize(QSize(18, 18))
+        self._standardize_button(self.prompt_button, width=42)
         self.prompt_button.clicked.connect(self._choose_prompt_file)
+        self.prompt_button.setToolTip("Seleciona um arquivo de prompt em Markdown")
         prompt_row_layout.addWidget(self.prompt_button)
 
-        self.prompt_generate_button = QPushButton("Gerar modelo")
-        self._standardize_button(self.prompt_generate_button, width=78)
+        self.prompt_generate_button = QPushButton()
+        self.prompt_generate_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogNewFolder)
+        )
+        self.prompt_generate_button.setIconSize(QSize(18, 18))
+        self._standardize_button(self.prompt_generate_button, width=42)
         self.prompt_generate_button.clicked.connect(self._generate_prompt_template)
+        self.prompt_generate_button.setToolTip("Gera um modelo de prompt padrão")
         prompt_row_layout.addWidget(self.prompt_generate_button)
 
         prompt_row_layout.addStretch()
@@ -411,8 +415,12 @@ class MCPGui(QMainWindow):
         target_row_layout.setSpacing(12)
         target_row_layout.addWidget(self.target_edit, stretch=1)
 
-        self.target_button = QPushButton("Selecionar")
-        self._standardize_button(self.target_button, width=78)
+        self.target_button = QPushButton()
+        self.target_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon)
+        )
+        self.target_button.setIconSize(QSize(18, 18))
+        self._standardize_button(self.target_button, width=42)
         self.target_button.clicked.connect(self._choose_target_dir)
         self.target_button.setToolTip(
             "Seleciona a pasta onde os arquivos exportados serão gravados"
@@ -470,10 +478,11 @@ class MCPGui(QMainWindow):
         self.url_edit = QLineEdit()
         self.url_edit.setToolTip("URL base do servidor LLM escolhido")
         self.model_combo.setToolTip("Nome do modelo carregado no servidor selecionado")
-        self.check_models_button = QPushButton("Testar URL")
+        self.check_models_button = QPushButton()
         self.check_models_button.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload)
         )
+        self.check_models_button.setIconSize(QSize(18, 18))
         self.check_models_button.setToolTip(
             "Verifica a conectividade com o servidor selecionado e lista modelos disponíveis"
         )
@@ -483,7 +492,7 @@ class MCPGui(QMainWindow):
 
         self._style_form_field(self.url_edit)
         self._style_form_field(self.model_combo)
-        self._standardize_button(self.check_models_button, width=120)
+        self._standardize_button(self.check_models_button, width=42)
 
         model_row_widget = QWidget()
         model_row_layout = QHBoxLayout(model_row_widget)
@@ -610,7 +619,7 @@ class MCPGui(QMainWindow):
         return group
 
     # ----------------------------- Barra de Status --------------------------
-        
+
     def _build_status_bar(self) -> None:
         status_bar = QStatusBar()
         status_bar.setSizeGripEnabled(False)
@@ -685,24 +694,6 @@ class MCPGui(QMainWindow):
             if candidate.exists():
                 self._set_current_image_preview(candidate)
                 return
-
-    def _build_check_icon(self) -> QIcon:
-        pixmap = QPixmap(22, 22)
-        pixmap.fill(Qt.GlobalColor.transparent)
-
-        painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QColor("#2da86f"))
-
-        font: QFont = painter.font()
-        font.setBold(True)
-        font.setPointSize(12)
-        painter.setFont(font)
-
-        painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, "✓")
-        painter.end()
-
-        return QIcon(pixmap)
 
     def _standardize_button(self, button: QPushButton, *, width: int = 130) -> None:
         button.setMinimumWidth(width)
@@ -924,8 +915,41 @@ class MCPGui(QMainWindow):
     def _set_status_ui(self, text: str) -> None:
         self.progress.setFormat(text)
 
+    def _set_controls_enabled(self, enabled: bool) -> None:
+        """Ativa/desativa os controles principais durante tarefas assíncronas."""
+        # Botões principais
+        self.run_button.setEnabled(enabled)
+        self.check_models_button.setEnabled(enabled)
+        self.darktable_probe_button.setEnabled(enabled)
+
+        # Campos de configuração
+        for widget in (
+            self.mode_combo,
+            self.source_combo,
+            self.path_contains_edit,
+            self.tag_edit,
+            self.collection_edit,
+            self.prompt_edit,
+            self.prompt_button,
+            self.prompt_generate_button,
+            self.target_edit,
+            self.target_button,
+            self.min_rating_spin,
+            self.limit_spin,
+            self.only_raw_check,
+            self.dry_run_check,
+            self.host_ollama,
+            self.host_lmstudio,
+            self.model_combo,
+            self.url_edit,
+        ):
+            widget.setEnabled(enabled)
+
     @Slot(bool)
     def _toggle_progress(self, running: bool) -> None:
+        # Travar/destravar UI
+        self._set_controls_enabled(not running)
+
         if running:
             self.progress.setRange(0, 0)
         else:
@@ -933,7 +957,7 @@ class MCPGui(QMainWindow):
             self.progress.setValue(0)
             self.progress.setFormat("Pronto.")
 
-    def resizeEvent(self, event) -> None:  # type: ignore[override]
+    def resizeEvent(self, event: QResizeEvent) -> None:  # type: ignore[override]
         super().resizeEvent(event)
         self._refresh_image_preview()
 
@@ -997,6 +1021,15 @@ class MCPGui(QMainWindow):
             raise ValueError("Coleção é obrigatória quando a fonte é 'collection'.")
         if mode in {"export", "completo"} and not target_dir:
             raise ValueError("Diretório de export é obrigatório em modo export ou completo.")
+
+        # validações adicionais
+        if prompt_file and not prompt_file.is_file():
+            raise ValueError(f"Arquivo de prompt não encontrado: {prompt_file}")
+
+        if target_dir:
+            export_dir = Path(target_dir).expanduser()
+            if not export_dir.is_dir():
+                raise ValueError(f"Diretório de export inválido: {export_dir}")
 
         model_default = OLLAMA_MODEL if host == "ollama" else LMSTUDIO_MODEL
         url_default = OLLAMA_URL if host == "ollama" else LMSTUDIO_URL
@@ -1123,8 +1156,15 @@ class MCPGui(QMainWindow):
     def _fetch_ollama_models(self, url: str) -> list[str]:
         base = url.rstrip("/") or OLLAMA_URL
         tags_url = f"{base}/api/tags"
-        resp = requests.get(tags_url, timeout=5)
-        resp.raise_for_status()
+
+        try:
+            resp = requests.get(tags_url, timeout=5)
+            resp.raise_for_status()
+        except requests.exceptions.RequestException as exc:
+            raise RuntimeError(
+                f"Falha ao consultar modelos do Ollama em {tags_url}. "
+                "Verifique a URL e se o servidor está em execução."
+            ) from exc
 
         data = resp.json()
         models = [m.get("name", "") for m in data.get("models", []) if m.get("name")]
@@ -1141,8 +1181,15 @@ class MCPGui(QMainWindow):
                 base = base + "/v1"
 
         models_url = f"{base}/models"
-        resp = requests.get(models_url, timeout=5)
-        resp.raise_for_status()
+
+        try:
+            resp = requests.get(models_url, timeout=5)
+            resp.raise_for_status()
+        except requests.exceptions.RequestException as exc:
+            raise RuntimeError(
+                f"Falha ao consultar modelos do LM Studio em {models_url}. "
+                "Verifique a URL e se o servidor está em execução."
+            ) from exc
 
         data = resp.json()
         items = data.get("data") or []
