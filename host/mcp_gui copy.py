@@ -17,7 +17,7 @@ from typing import Callable, Optional
 import requests
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -678,6 +678,24 @@ class MCPGui(QMainWindow):
             if candidate.exists():
                 self._set_current_image_preview(candidate)
                 return
+
+    def _build_check_icon(self) -> QIcon:
+        pixmap = QPixmap(22, 22)
+        pixmap.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QColor("#2da86f"))
+
+        font: QFont = painter.font()
+        font.setBold(True)
+        font.setPointSize(12)
+        painter.setFont(font)
+
+        painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, "✓")
+        painter.end()
+
+        return QIcon(pixmap)
 
     def _standardize_button(self, button: QPushButton, *, width: int = 130) -> None:
         button.setMinimumWidth(width)
