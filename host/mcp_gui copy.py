@@ -355,6 +355,10 @@ class MCPGui(QMainWindow):
         ):
             self._style_form_field(w)
 
+        # Permite que o campo encolha para acomodar os botões de seleção
+        # sem sobrepor os ícones à direita.
+        self.prompt_edit.setMinimumWidth(0)
+
         config_form.addRow("Path contém:", self.path_contains_edit)
         config_form.addRow("Tag:", self.tag_edit)
 
