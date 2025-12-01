@@ -15,7 +15,7 @@ from typing import Callable, Optional
 
 import requests
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal, Slot, QSize
 from PySide6.QtGui import QIcon, QPixmap, QResizeEvent
 from PySide6.QtWidgets import (
     QApplication,
@@ -384,14 +384,24 @@ class MCPGui(QMainWindow):
         prompt_row_layout.setSpacing(12)
         prompt_row_layout.addWidget(self.prompt_edit, stretch=1)
 
-        self.prompt_button = QPushButton("Sel")
-        self._standardize_button(self.prompt_button, width=78)
+        self.prompt_button = QPushButton()
+        self.prompt_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton)
+        )
+        self.prompt_button.setIconSize(QSize(18, 18))
+        self._standardize_button(self.prompt_button, width=42)
         self.prompt_button.clicked.connect(self._choose_prompt_file)
+        self.prompt_button.setToolTip("Seleciona um arquivo de prompt em Markdown")
         prompt_row_layout.addWidget(self.prompt_button)
 
-        self.prompt_generate_button = QPushButton("Gerar")
-        self._standardize_button(self.prompt_generate_button, width=78)
+        self.prompt_generate_button = QPushButton()
+        self.prompt_generate_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogNewFolder)
+        )
+        self.prompt_generate_button.setIconSize(QSize(18, 18))
+        self._standardize_button(self.prompt_generate_button, width=42)
         self.prompt_generate_button.clicked.connect(self._generate_prompt_template)
+        self.prompt_generate_button.setToolTip("Gera um modelo de prompt padrão")
         prompt_row_layout.addWidget(self.prompt_generate_button)
 
         prompt_row_layout.addStretch()
@@ -404,8 +414,12 @@ class MCPGui(QMainWindow):
         target_row_layout.setSpacing(12)
         target_row_layout.addWidget(self.target_edit, stretch=1)
 
-        self.target_button = QPushButton("Sel")
-        self._standardize_button(self.target_button, width=78)
+        self.target_button = QPushButton()
+        self.target_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon)
+        )
+        self.target_button.setIconSize(QSize(18, 18))
+        self._standardize_button(self.target_button, width=42)
         self.target_button.clicked.connect(self._choose_target_dir)
         self.target_button.setToolTip(
             "Seleciona a pasta onde os arquivos exportados serão gravados"
