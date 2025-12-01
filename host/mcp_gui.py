@@ -357,15 +357,16 @@ class MCPGui(QMainWindow):
         config_form.addRow("Path contém:", self.path_contains_edit)
         config_form.addRow("Tag:", self.tag_edit)
 
-        self.darktable_probe_button = QPushButton("Checar darktable")
+        self.darktable_probe_button = QPushButton()
         self.darktable_probe_button.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
         )
+        self.darktable_probe_button.setIconSize(QSize(18, 18))
         self.darktable_probe_button.setToolTip(
             "Testa a conexão com o darktable, lista coleções e mostra uma amostra das fotos encontradas"
         )
         self.darktable_probe_button.clicked.connect(self._probe_darktable_connection)
-        self._standardize_button(self.darktable_probe_button, width=170)
+        self._standardize_button(self.darktable_probe_button, width=42)
 
         collection_row_widget = QWidget()
         collection_row_layout = QHBoxLayout(collection_row_widget)
