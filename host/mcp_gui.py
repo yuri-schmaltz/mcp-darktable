@@ -386,7 +386,7 @@ class MCPGui(QMainWindow):
 
         self.prompt_button = QPushButton()
         self.prompt_button.setIcon(
-            self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogOpenButton)
+            self.style().standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton)
         )
         self.prompt_button.setIconSize(QSize(18, 18))
         self._standardize_button(self.prompt_button, width=42)
