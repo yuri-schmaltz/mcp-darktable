@@ -477,10 +477,11 @@ class MCPGui(QMainWindow):
         self.url_edit = QLineEdit()
         self.url_edit.setToolTip("URL base do servidor LLM escolhido")
         self.model_combo.setToolTip("Nome do modelo carregado no servidor selecionado")
-        self.check_models_button = QPushButton("Conectar")
+        self.check_models_button = QPushButton()
         self.check_models_button.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload)
         )
+        self.check_models_button.setIconSize(QSize(18, 18))
         self.check_models_button.setToolTip(
             "Verifica a conectividade com o servidor selecionado e lista modelos disponíveis"
         )
@@ -490,7 +491,7 @@ class MCPGui(QMainWindow):
 
         self._style_form_field(self.url_edit)
         self._style_form_field(self.model_combo)
-        self._standardize_button(self.check_models_button, width=120)
+        self._standardize_button(self.check_models_button, width=42)
 
         model_row_widget = QWidget()
         model_row_layout = QHBoxLayout(model_row_widget)
