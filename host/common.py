@@ -181,6 +181,25 @@ class McpClient:
                     # Prevent Lua script from trying to re-exec or check flatpak
                     new_env["DT_MCP_LD_REEXEC"] = "1"
 
+                    # CHECK FOR BUNDLED LUA
+                    # Se o comando original chama "lua", vamos tentar usar o lua do AppImage
+                    # para evitar ABI mismatch (ex: sistema usa 5.3, DT usa 5.4).
+                    if isinstance(self.command, list) and self.command[0] == "lua":
+                         # Check for bundled first (rare for AppImage to expose it)
+                         bundled_lua = Path(mount_point) / "usr/bin/lua"
+                         if not bundled_lua.exists():
+                             bundled_lua = Path(mount_point) / "usr/bin/luajit"
+                         
+                         if bundled_lua.exists():
+                             print(f"[AppImage] Usando Lua embutido: {bundled_lua}")
+                             self.command[0] = str(bundled_lua)
+                         else:
+                             # Fallback: check for system lua5.4 which matches Darktable's requirements
+                             sys_lua54 = shutil.which("lua5.4")
+                             if sys_lua54:
+                                  print(f"[AppImage] Usando Lua do sistema ({sys_lua54}) para compatibilidade ABI.")
+                                  self.command[0] = sys_lua54
+                    
                     self.env = new_env
                     return
         except Exception as e:

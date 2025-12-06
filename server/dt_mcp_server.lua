@@ -44,13 +44,21 @@ local function file_exists(path)
 end
 
 local function dir_exists(path)
-  local ok, _, code = os.rename(path, path)
-  if ok then return true end
-  return code == 13
+  -- Use shell test for more robust check
+  local cmd = "test -d " .. string.format("%q", path)
+  local ok, reason, code = os.execute(cmd)
+  local result = false
+  if type(ok) == "number" then result = (ok == 0)
+  elseif ok == true then result = true
+  end
+  io.stderr:write(string.format("[debug] dir_exists('%s') -> %s (ok=%s code=%s)\n", path, tostring(result), tostring(ok), tostring(code)))
+  return result
 end
 
 local function detect_darktable_paths()
   local home = os.getenv("HOME") or ""
+  
+  -- ... (omitted code) ...
 
   local function add_candidate(list, prefix, source)
     if prefix and prefix ~= "" then
@@ -59,20 +67,52 @@ local function detect_darktable_paths()
   end
 
   local candidates = {}
-  add_candidate(candidates, os.getenv("DARKTABLE_PREFIX"), "env:DARKTABLE_PREFIX")
-  add_candidate(candidates, os.getenv("DARKTABLE_FLATPAK_PREFIX"), "env:DARKTABLE_FLATPAK_PREFIX")
-  if home ~= "" then
-    add_candidate(
-      candidates,
-      home .. "/.local/share/flatpak/app/org.darktable.Darktable/current/active/files",
-      "flatpak:user"
-    )
-  end
-  add_candidate(candidates, "/var/lib/flatpak/app/org.darktable.Darktable/current/active/files", "flatpak:system")
-  add_candidate(candidates, "/usr", "default:/usr")
-  add_candidate(candidates, "/usr/local", "default:/usr/local")
+  -- ...
 
   local function pick_prefix()
+    -- Se DARKTABLE_LIB_PATH for definido, usamos ele como fonte primária
+    local env_lib = os.getenv("DARKTABLE_LIB_PATH")
+    if env_lib and file_exists(env_lib) then
+        -- Inferir prefixo
+        local prefix = env_lib:match("(.+)/lib/libdarktable.so")
+        if not prefix then prefix = env_lib:match("(.+)/lib64/libdarktable.so") end
+        if not prefix then prefix = env_lib:match("(.+)/[^/]+/[^/]+") end
+        
+        if prefix then
+            local source = "env:DARKTABLE_LIB_PATH"
+            local datadir = prefix .. "/share/darktable"
+            local moduledir = prefix .. "/lib/darktable"
+            if not dir_exists(moduledir) then
+                 if dir_exists(prefix .. "/lib/x86_64-linux-gnu/darktable") then
+                     moduledir = prefix .. "/lib/x86_64-linux-gnu/darktable"
+                 elseif dir_exists(prefix .. "/lib64/darktable") then
+                     moduledir = prefix .. "/lib64/darktable"
+                 else
+                     moduledir = prefix .. "/lib"
+                 end
+            end
+            
+            local cpaths = {
+                prefix .. "/lib/lib?.so",
+                prefix .. "/lib/darktable/lib?.so",
+                prefix .. "/lib/darktable/plugins/lib?.so",
+                prefix .. "/lib64/lib?.so",
+                prefix .. "/lib64/darktable/lib?.so",
+                env_lib:match("(.*/)"), 
+            }
+            
+            return { 
+                prefix = prefix, 
+                source = source, 
+                is_flatpak = false, 
+                lib_path = env_lib,
+                datadir = datadir,
+                moduledir = moduledir,
+                cpaths = cpaths
+            }, env_lib
+        end
+    end
+
     for _, item in ipairs(candidates) do
       local prefix = item.prefix
       local lib_candidates = {
@@ -106,6 +146,11 @@ local function detect_darktable_paths()
         "/usr/lib64/darktable/lib?.so",
       }
     }
+  end
+
+  -- Se já temos moduledir e datadir definidos (ex: via DARKTABLE_LIB_PATH), retornamos direto
+  if chosen.moduledir and chosen.datadir then
+      return chosen
   end
 
   local moduledir = chosen.prefix .. "/lib/darktable"
@@ -176,56 +221,6 @@ local function get_flatpak_runtime_libs()
   end
   
   return found_paths
-end
-
--- Se o Python injetou DARKTABLE_LIB_PATH (ex: AppImage mount), usamos ele com prioridade
-local env_lib = os.getenv("DARKTABLE_LIB_PATH")
-if env_lib and file_exists(env_lib) then
-    io.stderr:write("[init] using env DARKTABLE_LIB_PATH: " .. env_lib .. "\n")
-    -- Tentamos carregar direto. Se falhar, segue o fluxo.
-    -- Nota: package.loadlib é mais baixo nível, o require "darktable" usa package.cpath.
-    -- Vamos adicionar o diretório do lib ao cpath.
-    local lib_dir = env_lib:match("(.*/)")
-    if lib_dir then
-       package.cpath = package.cpath .. ";" .. lib_dir .. "?.so"
-    end
-end
-
--- Se não achamos paths padrão e não é flatpak, tentamos load genérico
-if not dt_paths.lib_path and not dt_paths.is_flatpak and not env_lib then
-  -- This condition was `if not dt_paths.is_flatpak then return end` before.
-  -- The new logic implies that if we don't have a lib_path, are not flatpak,
-  -- and no env_lib was provided, we might need to re-exec.
-  -- However, the original `ensure_ld_library_path` only re-execs for flatpak.
-  -- Let's keep the original `ensure_ld_library_path` logic for now,
-  -- and only add the `env_lib` check to the `cpath` setup.
-  -- The instruction implies this block is part of `ensure_ld_library_path` but it's not.
-  -- It's a separate check before `ensure_ld_library_path` is called.
-  -- The `if not dt_paths.lib and not dt_paths.is_flatpak and not env_lib then return end`
-  -- seems to be a new condition that would prevent `ensure_ld_library_path` from running.
-  -- This is a bit ambiguous. Let's assume the instruction wants this block *before*
-  -- `ensure_ld_library_path` and the `if not dt_paths.lib and ...` is a new guard.
-  -- Re-reading the instruction: "if not dt_paths.lib and not dt_paths.is_flatpak and not env_lib then return end"
-  -- This line is *inside* the `ensure_ld_library_path` function in the instruction's context.
-  -- This means the `env_lib` check should be *before* the `ensure_ld_library_path` function,
-  -- and the `if not dt_paths.lib ...` guard should be *inside* `ensure_ld_library_path`.
-
-  -- Let's re-evaluate the placement.
-  -- The `env_lib` logic modifies `package.cpath`. This should happen before `package.cpath` is used by `require("darktable")`.
-  -- The `ensure_ld_library_path` function is called *after* `dt_paths` is detected, and *before* `package.cpath` is fully built.
-  -- The instruction's context shows the `env_lib` block *before* the `if not dt_paths.lib ...` block,
-  -- and both are *before* `if os.getenv("DT_MCP_LD_REEXEC") == "1" then`.
-  -- This implies the `env_lib` block should be *inside* `ensure_ld_library_path`.
-
-  -- Let's place the `env_lib` logic at the beginning of `ensure_ld_library_path`
-  -- and then the `if not dt_paths.lib ...` guard.
-
-  -- Original `ensure_ld_library_path` starts with:
-  -- `if not dt_paths.is_flatpak then return end`
-  -- The instruction replaces this with:
-  -- `if not dt_paths.lib and not dt_paths.is_flatpak and not env_lib then return end`
-  -- This means `env_lib` needs to be defined *before* this guard.
-  -- So, `local env_lib = os.getenv("DARKTABLE_LIB_PATH")` and its `if` block should be at the very beginning of `ensure_ld_library_path`.
 end
 
 local function ensure_ld_library_path()
@@ -371,6 +366,7 @@ local PROTOCOL_VERSION = "2024-11-05"
 
 -- Ajuste esse caminho conforme sua distro:
 -- Ex: /usr/lib/darktable/libdarktable.so
+
 local dt = require("darktable")(
   "--library",   os.getenv("HOME") .. "/.config/darktable/library.db",
   "--datadir",   dt_paths.datadir,
@@ -433,7 +429,9 @@ local function safe_colorlabels(img)
   -- devolve lista de cores ativas, só pra informação
   local colors = { "red", "yellow", "green", "blue", "purple" }
   local out = {}
-  if not img.colorlabels then return out end
+  -- Accessing unknown field in userdata might throw error
+  local has_labels, labels = pcall(function() return img.colorlabels end)
+  if not has_labels or not labels then return out end
   for i, name in ipairs(colors) do
     -- índices normalmente 0..4; aqui assumo 1..5 se dt normalizar
     if img.colorlabels[i-1] or img.colorlabels[i] then
@@ -540,7 +538,8 @@ local function tool_list_available_collections(args)
 
   for _, img in ipairs(dt.database) do
     local path = img.path or ""
-    local film = img.film and img.film.roll_name or nil
+    -- "roll_name" pode nao existir em algumas versoes, usamos o path do film
+    local film = img.film and (pcall(function() return img.film.roll_name end) and img.film.roll_name or tostring(img.film)) or nil
 
     if path ~= "" then
       if not groups[path] then
