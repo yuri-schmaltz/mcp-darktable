@@ -277,7 +277,22 @@ class McpClient:
             logging.warning(f"MCP STDERR: {content}")
         return content
 
+    def start(self):
+        """Inicia o subprocesso do servidor MCP."""
+        if self.proc:
+            return
+
+        self.proc = subprocess.Popen(
+            self.command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=self.env
+        )
+
     def __enter__(self):
+        self.start()
         return self
 
     def __exit__(self, exc_type, exc, tb):
@@ -301,6 +316,9 @@ class McpClient:
         return self.request("tools/call", params)
 
     def close(self):
+        if not self.proc:
+            return
+
         still_running = self.proc.poll() is None
 
         if still_running:
@@ -325,6 +343,8 @@ class McpClient:
                     stream.close()
             except Exception:
                 pass
+        
+        self.proc = None
 
 
 def _ensure_paths() -> None:
@@ -733,14 +753,7 @@ def probe_darktable_state(
         )
         
         # Precisamos conectar startar o processo
-        client.proc = subprocess.Popen(
-            client.command,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            env=client.env # Importante usar o env modificado (LD_LIBRARY_PATH)
-        )
+        client.start()
 
     except FileNotFoundError as exc:  # noqa: BLE001
         result["error"] = f"Falha ao iniciar servidor MCP: {exc}"

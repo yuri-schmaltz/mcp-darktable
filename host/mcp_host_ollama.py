@@ -100,7 +100,12 @@ def main():
 
     # 3. Execução Principal
     try:
-        with McpClient(DT_SERVER_CMD, PROTOCOL_VERSION, CLIENT_INFO) as client:
+        from common import _find_appimage
+        appimage = _find_appimage()
+        if appimage:
+            print(f"[ollama-host] Usando AppImage: {appimage}")
+
+        with McpClient(DT_SERVER_CMD, PROTOCOL_VERSION, CLIENT_INFO, appimage_path=appimage) as client:
             client.initialize()
             
             if args.list_collections:
