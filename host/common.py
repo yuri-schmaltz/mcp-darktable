@@ -178,6 +178,9 @@ class McpClient:
                     # Geralmente melhor usar o próprio AppImage como comando
                     new_env["DARKTABLE_CLI_CMD"] = target_appimage 
 
+                    # Prevent Lua script from trying to re-exec or check flatpak
+                    new_env["DT_MCP_LD_REEXEC"] = "1"
+
                     self.env = new_env
                     return
         except Exception as e:

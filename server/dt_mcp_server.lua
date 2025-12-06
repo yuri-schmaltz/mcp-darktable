@@ -239,6 +239,9 @@ local function ensure_ld_library_path()
       local lib_dir = env_lib:match("(.*/)")
       if lib_dir then
          package.cpath = package.cpath .. ";" .. lib_dir .. "?.so"
+         -- Importante: AppImages/Linux libs geralmente sao "libdarktable.so", mas require("darktable") procura "darktable.so".
+         -- Adicionando padrao "lib?.so" permite achar "libdarktable.so".
+         package.cpath = package.cpath .. ";" .. lib_dir .. "lib?.so"
       end
   end
 
