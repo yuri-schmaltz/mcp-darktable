@@ -39,24 +39,99 @@ class VisionImage:
 class McpClient:
     def __init__(
         self,
-        cmd: List[str],
+        command: str,
         protocol_version: str,
         client_info: dict,
-        *,
+        log_file: Optional[Path] = None,
+        env: Optional[dict] = None,
         response_timeout: float = 30.0,
     ):
-        self.proc = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-        )
-        self.msg_id = 0
+        self.command = command
+        # Se command for AppImage, ajustamos env automaticamente
+        self._appimage_proc: Optional[subprocess.Popen] = None
+        self._appimage_mount: Optional[str] = None
+        self._setup_appimage_env(env)
+        
         self.protocol_version = protocol_version
         self.client_info = client_info
+        self.proc = None
+        self.request_id = 0
+        self.log_file = log_file
         self.response_timeout = response_timeout
+        self._next_req_id = 1
+        
+    def _setup_appimage_env(self, env: Optional[dict]):
+        """Se o comando for um AppImage, monta e configura LD_LIBRARY_PATH."""
+        cmd_parts = self.command.split()
+        exe = cmd_parts[0]
+        
+        # Verifica se é AppImage (por extensão ou conteúdo se necessário, aqui extensão simplificada)
+        if not exe.lower().endswith(".appimage") and ".appimage" not in exe.lower():
+             self.env = env
+             return
+
+        print(f"[AppImage] Detectado: {exe}")
+        try:
+            # Inicia montagem
+            self._appimage_proc = subprocess.Popen(
+                [exe, "--appimage-mount"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            
+            # Lê a primeira linha para pegar o mount point
+            if self._appimage_proc.stdout:
+                mount_point = self._appimage_proc.stdout.readline().strip()
+                if mount_point:
+                    self._appimage_mount = mount_point
+                    print(f"[AppImage] Montado em: {mount_point}")
+                    
+                    # Configura ambiente
+                    new_env = (env or os.environ).copy()
+                    current_ld = new_env.get("LD_LIBRARY_PATH", "")
+                    
+                    # Caminhos comuns dentro do AppImage do Darktable
+                    libs = [
+                        f"{mount_point}/usr/lib",
+                        f"{mount_point}/usr/lib/darktable",
+                        f"{mount_point}/usr/lib/x86_64-linux-gnu/darktable",
+                        f"{mount_point}/usr/lib64/darktable",
+                    ]
+                    
+                    # Lua path também pode ser necessário
+                    current_lua_path = new_env.get("LUA_PATH", "")
+                    lua_paths = [
+                         f"{mount_point}/usr/share/darktable/lua/?.lua",
+                         f"{mount_point}/usr/share/darktable/lua/?/init.lua"
+                    ]
+                    
+                    extra_ld = ":".join(libs)
+                    extra_lua = ";".join(lua_paths)
+                    
+                    new_env["LD_LIBRARY_PATH"] = f"{extra_ld}:{current_ld}"
+                    # new_env["LUA_PATH"] = f"{extra_lua};{current_lua_path}" # Opcional, geralmente lua acha seus libs
+                    
+                    # IMPORTANTE: Definir DARKTABLE_LIB_PATH para o script Lua saber onde procurar se ele usar lógica customizada
+                    new_env["DARKTABLE_LIB_PATH"] = f"{mount_point}/usr/lib/libdarktable.so"
+
+                    self.env = new_env
+                    return
+        except Exception as e:
+            print(f"[AppImage] Erro ao montar: {e}")
+            self._cleanup_appimage()
+            
+        self.env = env
+
+    def _cleanup_appimage(self):
+        if self._appimage_proc:
+            print("[AppImage] Desmontando...")
+            self._appimage_proc.terminate()
+            try:
+                self._appimage_proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                self._appimage_proc.kill()
+            self._appimage_proc = None
 
     def _next_id(self) -> str:
         self.msg_id += 1
@@ -132,6 +207,7 @@ class McpClient:
 
     def __exit__(self, exc_type, exc, tb):
         self.close()
+        self._cleanup_appimage()
         return False
 
     def initialize(self):

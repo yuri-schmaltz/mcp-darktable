@@ -178,8 +178,72 @@ local function get_flatpak_runtime_libs()
   return found_paths
 end
 
+-- Se o Python injetou DARKTABLE_LIB_PATH (ex: AppImage mount), usamos ele com prioridade
+local env_lib = os.getenv("DARKTABLE_LIB_PATH")
+if env_lib and file_exists(env_lib) then
+    io.stderr:write("[init] using env DARKTABLE_LIB_PATH: " .. env_lib .. "\n")
+    -- Tentamos carregar direto. Se falhar, segue o fluxo.
+    -- Nota: package.loadlib é mais baixo nível, o require "darktable" usa package.cpath.
+    -- Vamos adicionar o diretório do lib ao cpath.
+    local lib_dir = env_lib:match("(.*/)")
+    if lib_dir then
+       package.cpath = package.cpath .. ";" .. lib_dir .. "?.so"
+    end
+end
+
+-- Se não achamos paths padrão e não é flatpak, tentamos load genérico
+if not dt_paths.lib_path and not dt_paths.is_flatpak and not env_lib then
+  -- This condition was `if not dt_paths.is_flatpak then return end` before.
+  -- The new logic implies that if we don't have a lib_path, are not flatpak,
+  -- and no env_lib was provided, we might need to re-exec.
+  -- However, the original `ensure_ld_library_path` only re-execs for flatpak.
+  -- Let's keep the original `ensure_ld_library_path` logic for now,
+  -- and only add the `env_lib` check to the `cpath` setup.
+  -- The instruction implies this block is part of `ensure_ld_library_path` but it's not.
+  -- It's a separate check before `ensure_ld_library_path` is called.
+  -- The `if not dt_paths.lib and not dt_paths.is_flatpak and not env_lib then return end`
+  -- seems to be a new condition that would prevent `ensure_ld_library_path` from running.
+  -- This is a bit ambiguous. Let's assume the instruction wants this block *before*
+  -- `ensure_ld_library_path` and the `if not dt_paths.lib and ...` is a new guard.
+  -- Re-reading the instruction: "if not dt_paths.lib and not dt_paths.is_flatpak and not env_lib then return end"
+  -- This line is *inside* the `ensure_ld_library_path` function in the instruction's context.
+  -- This means the `env_lib` check should be *before* the `ensure_ld_library_path` function,
+  -- and the `if not dt_paths.lib ...` guard should be *inside* `ensure_ld_library_path`.
+
+  -- Let's re-evaluate the placement.
+  -- The `env_lib` logic modifies `package.cpath`. This should happen before `package.cpath` is used by `require("darktable")`.
+  -- The `ensure_ld_library_path` function is called *after* `dt_paths` is detected, and *before* `package.cpath` is fully built.
+  -- The instruction's context shows the `env_lib` block *before* the `if not dt_paths.lib ...` block,
+  -- and both are *before* `if os.getenv("DT_MCP_LD_REEXEC") == "1" then`.
+  -- This implies the `env_lib` block should be *inside* `ensure_ld_library_path`.
+
+  -- Let's place the `env_lib` logic at the beginning of `ensure_ld_library_path`
+  -- and then the `if not dt_paths.lib ...` guard.
+
+  -- Original `ensure_ld_library_path` starts with:
+  -- `if not dt_paths.is_flatpak then return end`
+  -- The instruction replaces this with:
+  -- `if not dt_paths.lib and not dt_paths.is_flatpak and not env_lib then return end`
+  -- This means `env_lib` needs to be defined *before* this guard.
+  -- So, `local env_lib = os.getenv("DARKTABLE_LIB_PATH")` and its `if` block should be at the very beginning of `ensure_ld_library_path`.
+end
+
 local function ensure_ld_library_path()
-  if not dt_paths.is_flatpak then
+  -- Se o Python injetou DARKTABLE_LIB_PATH (ex: AppImage mount), usamos ele com prioridade
+  local env_lib = os.getenv("DARKTABLE_LIB_PATH")
+  if env_lib and file_exists(env_lib) then
+      io.stderr:write("[init] using env DARKTABLE_LIB_PATH: " .. env_lib .. "\n")
+      -- Tentamos carregar direto. Se falhar, segue o fluxo.
+      -- Nota: package.loadlib é mais baixo nível, o require "darktable" usa package.cpath.
+      -- Vamos adicionar o diretório do lib ao cpath.
+      local lib_dir = env_lib:match("(.*/)")
+      if lib_dir then
+         package.cpath = package.cpath .. ";" .. lib_dir .. "?.so"
+      end
+  end
+
+  -- Se não achamos paths padrão e não é flatpak, tentamos load genérico
+  if not dt_paths.lib_path and not dt_paths.is_flatpak and not env_lib then
     return
   end
 
