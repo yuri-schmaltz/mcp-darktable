@@ -1,748 +1,99 @@
+#!/usr/bin/env python3
 from __future__ import annotations
 
 import argparse
-import json
-import time
+import sys
+from pathlib import Path
 
-import requests
+# Adiciona o diretório atual ao path para garantir imports
+sys.path.append(str(Path(__file__).parent))
 
 from common import (
-    BASE_DIR,
     DT_SERVER_CMD,
-    LOG_DIR,
     McpClient,
-    VisionImage,
-    append_export_result_to_log,
     check_dependencies,
-    extract_export_errors,
-    fallback_user_prompt,
-    fetch_images,
-    load_prompt,
-    prepare_vision_payloads,
     probe_darktable_state,
-    save_log,
+    list_available_collections
 )
+from llm_api import OpenAICompatProvider
+from batch_processor import BatchProcessor
 
 PROTOCOL_VERSION = "2024-11-05"
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.3.0"
 CLIENT_INFO = {"name": "darktable-mcp-lmstudio", "version": APP_VERSION}
-
-# Config padrão do LM Studio (API OpenAI-like)
-LMSTUDIO_URL = "http://localhost:1234/v1/chat/completions"  # ajuste a porta se for diferente
-LMSTUDIO_MODEL = ""
 DEPENDENCY_BINARIES = ["lua", "darktable-cli"]
 
+DEFAULT_LM_URL = "http://localhost:1234/v1/chat/completions"
 
-# --------- UTIL: checagem de modelo ---------
-def _fetch_lmstudio_model_metadata(model: str, url: str | None = None) -> dict | None:
-    raw_base = (url or LMSTUDIO_URL).rstrip("/")
-    if raw_base.endswith("/v1/chat/completions"):
-        base = raw_base[: -len("/chat/completions")]
-    else:
-        base = raw_base
-    by_id_url = f"{base}/v1/models/{model}"
-    list_url = f"{base}/v1/models"
-
-    for target in (by_id_url, list_url):
-        try:
-            resp = requests.get(target, timeout=5)
-            resp.raise_for_status()
-            data = resp.json()
-        except Exception:
-            continue
-
-        if target == by_id_url:
-            return data
-
-        entries = data.get("data") or data.get("models") or []
-        for entry in entries:
-            if entry.get("id") == model or entry.get("name") == model or entry.get("model") == model:
-                return entry
-
-    return None
-
-
-def _classify_multimodal_capability(metadata: dict, fallback_name: str) -> tuple[str, str]:
-    capabilities = metadata.get("capabilities") or metadata.get("capability") or {}
-    metadata_block = metadata.get("metadata")
-    if not capabilities and isinstance(metadata_block, dict):
-        capabilities = metadata_block.get("capabilities") or {}
-
-    modalities = (
-        metadata.get("modalities")
-        or metadata.get("modality")
-        or capabilities.get("modalities")
-        or capabilities.get("modality")
-    )
-
-    if isinstance(capabilities, dict):
-        if capabilities.get("vision") is True:
-            return "supported", "capabilities.vision=true"
-        if capabilities.get("vision") is False:
-            return "unsupported", "capabilities.vision=false"
-
-    if modalities:
-        if isinstance(modalities, list) and any(m in {"image", "vision", "multimodal"} for m in modalities):
-            return "supported", "modalities inclui imagem"
-        if isinstance(modalities, str) and any(word in modalities.lower() for word in ["vision", "image"]):
-            return "supported", f"modalities='{modalities}'"
-
-    name = str(
-        metadata.get("id")
-        or metadata.get("model")
-        or metadata.get("name")
-        or fallback_name
-    ).lower()
-    if any(token in name for token in ["vision", "-vl", "_vl", "-vision", "vl-"]):
-        return "supported", "heurística no nome do modelo"
-
-    return "unknown", "metadados não indicam visão"
-
-
-def ensure_model_supports_images(model: str | None, url: str | None, text_only: bool) -> None:
-    if text_only:
-        return
-
-    effective_model = model or LMSTUDIO_MODEL
-    if not effective_model:
-        print(
-            "[vision-check] Modelo não especificado; não é possível validar suporte a imagens. "
-            "Use --text-only se encontrar erros."
-        )
-        return
-
-    metadata = _fetch_lmstudio_model_metadata(effective_model, url)
-    if not metadata:
-        print(
-            f"[vision-check] Não foi possível obter metadados para '{effective_model}'. "
-            "Prosseguindo mesmo assim; use --text-only se o provider recusar imagens."
-        )
-        return
-
-    status, detail = _classify_multimodal_capability(metadata, effective_model)
-    if status == "unsupported":
-        raise SystemExit(
-            f"[vision-check] O modelo '{effective_model}' não parece suportar imagens ({detail}). "
-            "Escolha um modelo multimodal ou execute com --text-only."
-        )
-
-    if status == "supported":
-        print(f"[vision-check] Modelo '{effective_model}' validado como multimodal ({detail}).")
-    else:
-        print(
-            f"[vision-check] Suporte a imagens não pôde ser confirmado para '{effective_model}' "
-            f"({detail}). Continue apenas se tiver certeza de que o modelo é multimodal."
-        )
-
-
-# --------- UTIL: chamada ao LM Studio ---------
-def call_lmstudio(system_prompt, user_prompt, model=None, url=None):
-    url = url or LMSTUDIO_URL
-    model = model or LMSTUDIO_MODEL
-
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "stream": False,
-    }
-    started = time.time()
-    resp = requests.post(url, json=payload)
-    elapsed_ms = int((time.time() - started) * 1000)
-    resp.raise_for_status()
-    data = resp.json()
-    # API OpenAI-like
-    content = data["choices"][0]["message"]["content"]
-    meta = {
-        "model": model,
-        "url": url,
-        "status_code": resp.status_code,
-        "latency_ms": elapsed_ms,
-    }
-    return content, meta
-
-
-def call_lmstudio_messages(messages, model=None, url=None):
-    url = url or LMSTUDIO_URL
-    model = model or LMSTUDIO_MODEL
-
-    payload = {
-        "model": model,
-        "messages": messages,
-        "stream": False,
-    }
-    started = time.time()
-    resp = requests.post(url, json=payload)
-    elapsed_ms = int((time.time() - started) * 1000)
-    resp.raise_for_status()
-    data = resp.json()
-    content = data["choices"][0]["message"]["content"]
-    meta = {
-        "model": model,
-        "url": url,
-        "status_code": resp.status_code,
-        "latency_ms": elapsed_ms,
-    }
-    return content, meta
-
-
-# --------- CLI ---------
 def parse_args():
-    p = argparse.ArgumentParser(
-        description="Host MCP para darktable + LM Studio (rating/tagging/export/tratamento/completo).",
-    )
-    p.add_argument("--version", action="version", version=f"darktable-mcp-host {APP_VERSION}")
-    p.add_argument(
-        "--check-deps",
-        action="store_true",
-        help="Só verifica dependências e sai (lua, darktable-cli, requests).",
-    )
-    p.add_argument(
-        "--check-darktable",
-        action="store_true",
-        help=(
-            "Valida a conectividade com o darktable, lista coleções e retorna uma amostra "
-            "das fotos disponíveis."
-        ),
-    )
-    p.add_argument(
-        "--mode",
-        choices=["rating", "tagging", "export", "tratamento", "completo"],
-        default="rating",
-    )
+    p = argparse.ArgumentParser(description="Host MCP darktable + LM Studio (Refactored)")
+    p.add_argument("--version", action="version", version=f"v{APP_VERSION}")
+    p.add_argument("--mode", choices=["rating", "tagging", "export", "tratamento", "completo"], default="rating")
+    
+    # Filtros
     p.add_argument("--source", choices=["all", "path", "tag", "collection"], default="all")
-    p.add_argument("--path-contains", help="Filtro por trecho de path (source=path).")
-    p.add_argument("--tag", help="Filtro por tag (source=tag).")
-    p.add_argument(
-        "--collection",
-        help=(
-            "Nome ou caminho da coleção (source=collection). Combine com --list-collections "
-            "para descobrir opções."
-        ),
-    )
-    p.add_argument("--min-rating", type=int, default=-2, help="Rating mínimo.")
-    p.add_argument("--only-raw", action="store_true", help="Apenas arquivos RAW.")
-    p.add_argument("--dry-run", action="store_true", help="Não aplica, só mostra plano.")
-    p.add_argument("--limit", type=int, default=200, help="Limite de imagens enviadas ao modelo.")
-    p.add_argument("--model", help="Nome do modelo no LM Studio.")
-    p.add_argument("--lm-url", help="URL do servidor LM Studio (OpenAI API).")
-    p.add_argument(
-        "--target-dir",
-        help="Diretório de saída para export (obrigatório em --mode export ou completo).",
-    )
-    p.add_argument(
-        "--prompt-file",
-        help="Override do prompt (caminho para .md).",
-    )
-    p.add_argument(
-        "--prompt-variant",
-        choices=["basico", "avancado"],
-        default="basico",
-        help="Escolhe entre prompts básicos ou avançados para todos os passos.",
-    )
-    p.add_argument(
-        "--text-only",
-        action="store_true",
-        help="Não envia a imagem ao modelo (usa só metadados).",
-    )
-    p.add_argument(
-        "--list-collections",
-        action="store_true",
-        help="Lista coleções conhecidas no darktable e sai.",
-    )
+    p.add_argument("--path-contains", help="Filtro path")
+    p.add_argument("--tag", help="Filtro tag")
+    p.add_argument("--collection", help="Filtro collection")
+    p.add_argument("--min-rating", type=int, default=-2)
+    p.add_argument("--only-raw", action="store_true")
+    
+    # Controle
+    p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--limit", type=int, default=200)
+    p.add_argument("--target-dir", help="Para export")
+    
+    # LLM
+    p.add_argument("--model", help="Modelo LM Studio", default="local-model")
+    p.add_argument("--lm-url", default=DEFAULT_LM_URL)
+    p.add_argument("--timeout", type=float, default=60.0)
+    p.add_argument("--text-only", action="store_true")
+    p.add_argument("--prompt-file")
+    p.add_argument("--prompt-variant", default="basico")
+    
+    # Utils
+    p.add_argument("--check-deps", action="store_true")
+    p.add_argument("--check-darktable", action="store_true")
+    p.add_argument("--list-collections", action="store_true")
+    
     return p.parse_args()
 
-
-# --------- UTIL: multimodal / imagens ----------
-def build_lmstudio_messages_for_images(
-    system_prompt: str, sample: list[dict], vision_images: list[VisionImage]
-):
-    if not vision_images:
-        return [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": fallback_user_prompt(sample)},
-        ]
-
-    messages = [{"role": "system", "content": system_prompt}]
-    for item in vision_images:
-        meta = item.meta
-        colorlabels = ",".join(meta.get("colorlabels", []))
-        description = (
-            "Analise a imagem e sugira correções e tags coerentes. "
-            f"id={meta.get('id')} path={item.path} rating_atual={meta.get('rating')} "
-            f"raw={meta.get('is_raw')} colorlabels=[{colorlabels}]"
-        )
-        messages.append(
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": description},
-                    {"type": "image_url", "image_url": {"url": item.data_url}},
-                ],
-            }
-        )
-
-    messages.append(
-        {
-            "role": "user",
-            "content": "Retorne um único JSON cobrindo todas as imagens acima, seguindo o formato solicitado.",
-        }
-    )
-    return messages
-
-
-def list_available_collections(client):
-    res = client.call_tool("list_available_collections", {})
-    return res["content"][0]["json"]
-
-
-# --------- DEPENDÊNCIAS ---------
-def run_dependency_check():
-    check_dependencies([*DEPENDENCY_BINARIES])
-
-
-def run_darktable_probe(args) -> bool:
-    print("[probe] Verificando darktable + dependências...")
-    probe = probe_darktable_state(
-        PROTOCOL_VERSION,
-        CLIENT_INFO,
-        min_rating=args.min_rating,
-        only_raw=bool(args.only_raw),
-        sample_limit=max(1, min(args.limit, 50)),
-    )
-
-    deps = probe.get("dependencies", {})
-    missing = probe.get("missing_dependencies", [])
-    for name, location in deps.items():
-        status = f"OK ({location})" if location else "NÃO encontrado"
-        print(f"  - {name}: {status}")
-
-    cli_cmd = deps.get("darktable-cli") or ""
-    if cli_cmd.startswith("flatpak run"):
-        print(
-            "  > darktable-cli disponível via Flatpak. Ajuste DARKTABLE_FLATPAK_PREFIX "
-            "caso use um prefixo alternativo."
-        )
-
-    if missing:
-        print("[probe] Dependências ausentes; instale-as e tente novamente.")
-        return False
-
-    if probe.get("error"):
-        print(f"[probe] Erro ao consultar darktable: {probe['error']}")
-        return False
-
-    server_info = probe.get("server_info") or {}
-    tools = probe.get("tools") or []
-    print(f"[probe] Servidor MCP inicializado: {server_info}")
-    print(f"[probe] Ferramentas disponíveis: {', '.join(tools) or 'nenhuma'}")
-
-    collections = probe.get("collections") or []
-    print(f"[probe] Coleções detectadas ({len(collections)}):")
-    for entry in collections[:10]:
-        path = entry.get("path")
-        count = entry.get("image_count", 0)
-        film = entry.get("film_roll")
-        film_suffix = f" [filme: {film}]" if film else ""
-        print(f"  - {path} ({count} imagens){film_suffix}")
-    if len(collections) > 10:
-        print(f"  ... +{len(collections) - 10} coleções")
-
-    total_images = probe.get("image_total", 0)
-    sample = probe.get("sample_images") or []
-    print(f"[probe] Imagens disponíveis: {total_images} (amostra de {len(sample)})")
-    for item in sample:
-        image_path = f"{item.get('path', '')}/{item.get('filename', '')}"
-        print(
-            f"  - id={item.get('id')} rating={item.get('rating')} raw={item.get('is_raw')} "
-            f"labels={','.join(item.get('colorlabels', []))} {image_path}"
-        )
-
-    return True
-
-
-# --------- MODOS ---------
-def run_mode_rating(client, args):
-    images = fetch_images(client, args)
-    print(f"[rating] Imagens filtradas: {len(images)}")
-
-    if not images:
-        print("Nada para processar.")
-        return
-
-    sample = images[: args.limit]
-    system_prompt = load_prompt("rating", args.prompt_file, variant=args.prompt_variant)
-    vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
-    if vision_errors:
-        print("[rating] Avisos ao carregar imagens:")
-        for warn in vision_errors:
-            print("  -", warn)
-
-    messages = build_lmstudio_messages_for_images(system_prompt, sample, vision_images)
-
-    answer, meta = call_lmstudio_messages(
-        messages,
-        model=args.model or LMSTUDIO_MODEL,
-        url=args.lm_url or LMSTUDIO_URL,
-    )
-    print(
-        f"[rating] Modelo={meta['model']} status={meta['status_code']} "
-        f"latência={meta['latency_ms']}ms @ {meta['url']}"
-    )
-    print("[rating] Resposta bruta do modelo:")
-    print(answer)
-
-    log_file = save_log(
-        "rating",
-        args.source,
-        sample,
-        answer,
-        extra={
-            "llm": meta,
-            "vision": {
-                "attached": len(vision_images),
-                "errors": vision_errors,
-                "mode": "text-only" if args.text_only else "multimodal",
-            },
-        },
-    )
-    print(f"[rating] Log salvo em: {log_file}")
-
-    try:
-        parsed = json.loads(answer)
-        edits = parsed.get("edits", [])
-    except Exception as e:
-        print("[rating] Erro ao parsear JSON:", e)
-        return
-
-    if not edits:
-        print("[rating] Nenhuma edição retornada.")
-        return
-
-    print(f"[rating] {len(edits)} imagens com rating sugerido.")
-    if args.dry_run:
-        print("[rating] DRY-RUN: não aplicando mudanças.")
-        return
-
-    res = client.call_tool("apply_batch_edits", {"edits": edits})
-    print("[rating] Resultado apply_batch_edits:", res["content"][0]["text"])
-
-
-def run_mode_tagging(client, args):
-    images = fetch_images(client, args)
-    print(f"[tagging] Imagens filtradas: {len(images)}")
-
-    if not images:
-        print("Nada para processar.")
-        return
-
-    sample = images[: args.limit]
-    system_prompt = load_prompt("tagging", args.prompt_file, variant=args.prompt_variant)
-    vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
-    if vision_errors:
-        print("[tagging] Avisos ao carregar imagens:")
-        for warn in vision_errors:
-            print("  -", warn)
-
-    messages = build_lmstudio_messages_for_images(system_prompt, sample, vision_images)
-
-    answer, meta = call_lmstudio_messages(
-        messages,
-        model=args.model or LMSTUDIO_MODEL,
-        url=args.lm_url or LMSTUDIO_URL,
-    )
-    print(
-        f"[tagging] Modelo={meta['model']} status={meta['status_code']} "
-        f"latência={meta['latency_ms']}ms @ {meta['url']}"
-    )
-    print("[tagging] Resposta bruta do modelo:")
-    print(answer)
-
-    log_file = save_log(
-        "tagging",
-        args.source,
-        sample,
-        answer,
-        extra={
-            "llm": meta,
-            "vision": {
-                "attached": len(vision_images),
-                "errors": vision_errors,
-                "mode": "text-only" if args.text_only else "multimodal",
-            },
-        },
-    )
-    print(f"[tagging] Log salvo em: {log_file}")
-
-    try:
-        parsed = json.loads(answer)
-        tags_entries = parsed.get("tags", [])
-    except Exception as e:
-        print("[tagging] Erro ao parsear JSON:", e)
-        return
-
-    if not tags_entries:
-        print("[tagging] Nenhuma tag retornada.")
-        return
-
-    if args.dry_run:
-        print("[tagging] DRY-RUN: plano de tags:")
-        for entry in tags_entries:
-            print(f"  tag={entry.get('tag')} -> {len(entry.get('ids', []))} imagens")
-        return
-
-    total_ops = 0
-    for entry in tags_entries:
-        tag = entry.get("tag")
-        ids = entry.get("ids", [])
-        if not tag or not ids:
-            continue
-        res = client.call_tool("tag_batch", {"tag": tag, "ids": ids})
-        print(f"[tagging] tag_batch '{tag}':", res["content"][0]["text"])
-        total_ops += 1
-
-    print(f"[tagging] tag_batch executado {total_ops} vez(es).")
-
-
-def run_mode_export(client, args):
-    images = fetch_images(client, args)
-    print(f"[export] Imagens filtradas: {len(images)}")
-
-    if not images:
-        print("Nada para processar.")
-        return
-
-    if not args.target_dir:
-        print("[export] --target-dir é obrigatório em modo export.")
-        return
-
-    sample = images[: args.limit]
-    system_prompt = load_prompt("export", args.prompt_file, variant=args.prompt_variant)
-    vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
-    if vision_errors:
-        print("[export] Avisos ao carregar imagens:")
-        for warn in vision_errors:
-            print("  -", warn)
-
-    messages = build_lmstudio_messages_for_images(system_prompt, sample, vision_images)
-
-    answer, meta = call_lmstudio_messages(
-        messages,
-        model=args.model or LMSTUDIO_MODEL,
-        url=args.lm_url or LMSTUDIO_URL,
-    )
-    print(
-        f"[export] Modelo={meta['model']} status={meta['status_code']} "
-        f"latência={meta['latency_ms']}ms @ {meta['url']}"
-    )
-    print("[export] Resposta bruta do modelo:")
-    print(answer)
-
-    log_file = save_log(
-        "export",
-        args.source,
-        sample,
-        answer,
-        extra={
-            "target_dir": args.target_dir,
-            "llm": meta,
-            "vision": {
-                "attached": len(vision_images),
-                "errors": vision_errors,
-                "mode": "text-only" if args.text_only else "multimodal",
-            },
-        },
-    )
-    print(f"[export] Log salvo em: {log_file}")
-
-    try:
-        parsed = json.loads(answer)
-        ids = parsed.get("ids_para_exportar") or parsed.get("ids") or []
-    except Exception as e:
-        print("[export] Erro ao parsear JSON:", e)
-        return
-
-    if not ids:
-        print("[export] Nenhum id retornado para export.")
-        return
-
-    print(f"[export] {len(ids)} imagens selecionadas para export.")
-    if args.dry_run:
-        print("[export] DRY-RUN: NÃO exportando. Dir alvo:", args.target_dir)
-        print("IDs:", ids[:20], "..." if len(ids) > 20 else "")
-        return
-
-    params = {
-        "target_dir": args.target_dir,
-        "ids": ids,
-        "format": "jpg",
-        "overwrite": False,
-    }
-    res = client.call_tool("export_collection", params)
-    summary = res["content"][0]["text"]
-    print("[export] Resultado export_collection:", summary)
-
-    errors = extract_export_errors(res)
-    if errors:
-        print("[export] Falhas detalhadas:")
-        for err in errors:
-            print(
-                f"  id={err.get('id')} exit={err.get('exit')} reason={err.get('exit_reason')} "
-                f"cmd={err.get('command')}"
-            )
-            stderr_msg = (err.get("stderr") or "").strip()
-            if stderr_msg:
-                print("    stderr:", stderr_msg)
-
-    stored_log = append_export_result_to_log(log_file, res)
-    if stored_log != log_file:
-        print(f"[export] Resultado de export salvo em log adicional: {stored_log}")
-
-
-def run_mode_tratamento(client, args):
-    images = fetch_images(client, args)
-    print(f"[tratamento] Imagens filtradas: {len(images)}")
-
-    if not images:
-        print("Nada para processar.")
-        return
-
-    sample = images[: args.limit]
-    system_prompt = load_prompt("tratamento", args.prompt_file, variant=args.prompt_variant)
-    vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
-    if vision_errors:
-        print("[tratamento] Avisos ao carregar imagens:")
-        for warn in vision_errors:
-            print("  -", warn)
-
-    messages = build_lmstudio_messages_for_images(system_prompt, sample, vision_images)
-
-    answer, meta = call_lmstudio_messages(
-        messages,
-        model=args.model or LMSTUDIO_MODEL,
-        url=args.lm_url or LMSTUDIO_URL,
-    )
-    print(
-        f"[tratamento] Modelo={meta['model']} status={meta['status_code']} "
-        f"latência={meta['latency_ms']}ms @ {meta['url']}"
-    )
-    print("[tratamento] Resposta bruta do modelo:")
-    print(answer)
-
-    log_file = save_log(
-        "tratamento",
-        args.source,
-        sample,
-        answer,
-        extra={
-            "llm": meta,
-            "vision": {
-                "attached": len(vision_images),
-                "errors": vision_errors,
-                "mode": "text-only" if args.text_only else "multimodal",
-            },
-        },
-    )
-    print(f"[tratamento] Log salvo em: {log_file}")
-
-    try:
-        parsed = json.loads(answer)
-    except Exception as exc:
-        print("[tratamento] Erro ao parsear JSON:", exc)
-        return
-
-    plano = parsed.get("plano") or parsed.get("plan")
-    if not plano:
-        print("[tratamento] Nenhum plano retornado pelo modelo.")
-        return
-
-    print("[tratamento] Plano sugerido:")
-    print(plano)
-
-
-# --------- WORKFLOW COMPLETO ---------
-def run_mode_completo(client, args):
-    if not args.target_dir:
-        raise ValueError("--target-dir é obrigatório em --mode completo")
-
-    print("[completo] Iniciando pipeline: rating -> tagging -> tratamento -> export")
-    if args.dry_run:
-        print("[completo] DRY-RUN ativo: nenhuma alteração permanente será aplicada.")
-
-    run_mode_rating(client, args)
-    run_mode_tagging(client, args)
-    run_mode_tratamento(client, args)
-    run_mode_export(client, args)
-
-
-# --------- MAIN ---------
 def main():
     args = parse_args()
-
+    
     if args.check_deps:
-        run_dependency_check()
+        check_dependencies(DEPENDENCY_BINARIES)
+        return
 
     if args.check_darktable:
-        ok = run_darktable_probe(args)
-        raise SystemExit(0 if ok else 1)
-
-    missing = check_dependencies([*DEPENDENCY_BINARIES], exit_on_success=False)
-    if missing:
-        print(
-            "[deps] Dependências ausentes; instale-as e execute novamente ou use "
-            "--check-deps para revalidar."
+        probe = probe_darktable_state(
+            PROTOCOL_VERSION, CLIENT_INFO,
+            min_rating=args.min_rating,
+            only_raw=args.only_raw,
+            sample_limit=args.limit
         )
-        raise SystemExit(1)
+        print(probe)
+        return
 
-    if not args.check_darktable and not args.list_collections:
-        ensure_model_supports_images(args.model, args.lm_url, args.text_only)
-
-    LOG_DIR.mkdir(exist_ok=True)
+    # Provider OpenAI/LMStudio
+    provider = OpenAICompatProvider(args.lm_url, args.model, args.timeout)
 
     try:
         with McpClient(DT_SERVER_CMD, PROTOCOL_VERSION, CLIENT_INFO) as client:
-            init = client.initialize()
-            print("Inicializado:", init["serverInfo"])
-
-            tools = client.list_tools()
-            names = [t["name"] for t in tools["tools"]]
-            print("Ferramentas MCP disponíveis:", ", ".join(names))
-
+            client.initialize()
+            
             if args.list_collections:
                 available = list_available_collections(client)
-                print("Coleções conhecidas (path -> imagens):")
                 for entry in available:
-                    print(
-                        f"  - {entry.get('path')}"
-                        f" ({entry.get('image_count', 0)} imagens)"
-                        + (f" [filme: {entry.get('film_roll')}]" if entry.get("film_roll") else "")
-                    )
+                    print(f"- {entry.get('path')} ({entry.get('image_count')})")
                 return
 
-            if args.mode == "rating":
-                run_mode_rating(client, args)
-            elif args.mode == "tagging":
-                run_mode_tagging(client, args)
-            elif args.mode == "export":
-                run_mode_export(client, args)
-            elif args.mode == "tratamento":
-                run_mode_tratamento(client, args)
-            elif args.mode == "completo":
-                run_mode_completo(client, args)
-            else:
-                print("Modo desconhecido:", args.mode)
-
-    except FileNotFoundError as exc:
-        friendly = (
-            "Falha ao iniciar o servidor MCP. Certifique-se de que 'lua' e 'darktable-cli' "
-            "estão instalados e no PATH, ou use --check-deps para validar antes de rodar."
-        )
-        print(friendly)
-        check_dependencies([*DEPENDENCY_BINARIES], exit_on_success=False)
-        raise SystemExit(1) from exc
-
+            processor = BatchProcessor(client, provider, dry_run=args.dry_run)
+            processor.run(args.mode, args)
+            
+    except Exception as e:
+        print(f"Erro fatal: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

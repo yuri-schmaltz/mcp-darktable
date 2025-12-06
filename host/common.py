@@ -8,12 +8,19 @@ import shutil
 import select
 import subprocess
 import time
+import io
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Iterable, List, Optional
 
 import requests
+
+try:
+    from PIL import Image
+    HAS_PILLOW = True
+except ImportError:
+    HAS_PILLOW = False
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOG_DIR = BASE_DIR / "logs"
@@ -346,13 +353,48 @@ def load_prompt(
     return path.read_text(encoding="utf-8")
 
 
-def encode_image_to_base64(image_path: Path) -> tuple[str, str]:
-    raw = image_path.read_bytes()
-    b64 = base64.b64encode(raw).decode("ascii")
+def encode_image_to_base64(image_path: Path, max_dimension: int = 1600) -> tuple[str, str]:
+    """
+    Lê a imagem, redimensiona se necessário (e se Pillow estiver disponível) 
+    e retorna (b64_string, data_url).
+    Converte para JPEG para reduzir tamanho de tráfego, a menos que falhe.
+    """
     mime, _ = mimetypes.guess_type(image_path.name)
     mime = mime or "image/jpeg"
-    data_url = f"data:{mime};base64,{b64}"
-    return b64, data_url
+
+    if not HAS_PILLOW:
+        # Fallback sem otimização
+        raw = image_path.read_bytes()
+        b64 = base64.b64encode(raw).decode("ascii")
+        return b64, f"data:{mime};base64,{b64}"
+
+    try:
+        with Image.open(image_path) as img:
+            # Converter para RGB se necessário (ex: PNG com alpha ou RAWs suportados)
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            
+            # Redimensionar se for muito grande
+            w, h = img.size
+            if w > max_dimension or h > max_dimension:
+                img.thumbnail((max_dimension, max_dimension))
+            
+            # Salvar em buffer como JPEG
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG", quality=85)
+            raw = buffer.getvalue()
+            
+            # Atualiza mime para JPEG pois convertemos
+            mime = "image/jpeg"
+            b64 = base64.b64encode(raw).decode("ascii")
+            return b64, f"data:{mime};base64,{b64}"
+
+    except Exception as e:
+        print(f"[aviso] Falha ao otimizar imagem {image_path.name}: {e}. Usando original.")
+        # Fallback em caso de erro no Pillow (ex: arquivo corrompido ou formato não suportado)
+        raw = image_path.read_bytes()
+        b64 = base64.b64encode(raw).decode("ascii")
+        return b64, f"data:{mime};base64,{b64}"
 
 
 def prepare_vision_payloads(images: Iterable[dict], attach_images: bool = True):
@@ -418,6 +460,12 @@ def fetch_images(client: McpClient, args) -> list[dict]:
     result = client.call_tool(tool_name, params)
     images = result["content"][0]["json"]
     return images
+
+
+
+def list_available_collections(client) -> list[dict]:
+    res = client.call_tool("list_available_collections", {})
+    return res["content"][0]["json"]
 
 
 def probe_darktable_state(

@@ -318,8 +318,10 @@ local function image_to_metadata(img)
   }
 end
 
-local function escape_format(s)
-  return tostring(s):gsub("%%", "%%%%")
+local function shell_escape(s)
+  if not s then return "''" end
+  -- POSIX single-quote escape: ' -> '\''
+  return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
 end
 
 local function run_command_capture(cmd)
@@ -751,10 +753,8 @@ local function tool_export_collection(args)
   end
 
   -- garantir que target_dir existe
-  -- string.format falha se o caminho contiver '%', então escapamos
-  local safe_target_dir = escape_format(target_dir)
-
-  os.execute(string.format('mkdir -p "%s"', safe_target_dir))
+  -- garantir que target_dir existe
+  os.execute(string.format('mkdir -p %s', shell_escape(target_dir)))
 
   -- montar lista de imagens a exportar
   local to_export = {}
@@ -780,7 +780,7 @@ local function tool_export_collection(args)
 
     -- mudar extensão de saída pro formato escolhido
     local base = img.filename:gsub("%.[^%.]+$", "") -- tira extensão
-    local out  = string.format("%s/%s.%s", safe_target_dir, escape_format(base), format)
+    local out  = string.format("%s/%s.%s", target_dir, base, format)
 
     local skip = false
     if not overwrite then
@@ -793,8 +793,8 @@ local function tool_export_collection(args)
     end
 
     if not skip then
-      -- comando simples; ajuste flags conforme sua necessidade
-      local cmd = string.format('%s "%s" "%s"', DARKTABLE_CLI_CMD, escape_format(input), out)
+      -- usar shell_escape para garantir que nomes com espaços ou caracteres especiais funcionem
+      local cmd = string.format('%s %s %s', DARKTABLE_CLI_CMD, shell_escape(input), shell_escape(out))
       local success, exit_code, stderr_output, exit_reason = run_command_capture(cmd)
 
       if success then
