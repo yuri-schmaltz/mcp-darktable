@@ -75,36 +75,48 @@ class McpClient:
         log_file: Optional[Path] = None,
         env: Optional[dict] = None,
         response_timeout: float = 30.0,
+        appimage_path: Optional[str] = None,
     ):
         self.command = command
         # Se command for AppImage, ajustamos env automaticamente
         self._appimage_proc: Optional[subprocess.Popen] = None
         self._appimage_mount: Optional[str] = None
-        self._setup_appimage_env(env)
+        self._setup_appimage_env(env, appimage_path)
         
         self.protocol_version = protocol_version
         self.client_info = client_info
+        
+        # Se montamos um appimage, talvez precisemos ajustar self.command se ele for "lua ..."
+        # O script lua precisa saber onde estão as libs. Já injetamos no env.
+        
         self.proc = None
         self.request_id = 0
         self.log_file = log_file
         self.response_timeout = response_timeout
         self._next_req_id = 1
         
-    def _setup_appimage_env(self, env: Optional[dict]):
-        """Se o comando for um AppImage, monta e configura LD_LIBRARY_PATH."""
-        cmd_parts = self.command.split()
-        exe = cmd_parts[0]
+    def _setup_appimage_env(self, env: Optional[dict], appimage_path: Optional[str] = None):
+        """Se o comando for um AppImage ou appimage_path for fornecido, monta e configura LD_LIBRARY_PATH."""
+        if isinstance(self.command, list):
+            exe = self.command[0]
+        else:
+            cmd_parts = self.command.split()
+            exe = cmd_parts[0]
         
-        # Verifica se é AppImage (por extensão ou conteúdo se necessário, aqui extensão simplificada)
-        if not exe.lower().endswith(".appimage") and ".appimage" not in exe.lower():
+        target_appimage = appimage_path
+        if not target_appimage:
+             if exe.lower().endswith(".appimage") or ".appimage" in exe.lower():
+                 target_appimage = exe
+        
+        if not target_appimage:
              self.env = env
              return
 
-        print(f"[AppImage] Detectado: {exe}")
+        print(f"[AppImage] Detectado: {target_appimage}")
         try:
             # Inicia montagem
             self._appimage_proc = subprocess.Popen(
-                [exe, "--appimage-mount"],
+                [target_appimage, "--appimage-mount"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True
@@ -125,7 +137,9 @@ class McpClient:
                     libs = [
                         f"{mount_point}/usr/lib",
                         f"{mount_point}/usr/lib/darktable",
+                        f"{mount_point}/usr/lib/x86_64-linux-gnu",
                         f"{mount_point}/usr/lib/x86_64-linux-gnu/darktable",
+                        f"{mount_point}/usr/lib64",
                         f"{mount_point}/usr/lib64/darktable",
                     ]
                     
@@ -137,13 +151,31 @@ class McpClient:
                     ]
                     
                     extra_ld = ":".join(libs)
-                    extra_lua = ";".join(lua_paths)
                     
                     new_env["LD_LIBRARY_PATH"] = f"{extra_ld}:{current_ld}"
                     # new_env["LUA_PATH"] = f"{extra_lua};{current_lua_path}" # Opcional, geralmente lua acha seus libs
                     
                     # IMPORTANTE: Definir DARKTABLE_LIB_PATH para o script Lua saber onde procurar se ele usar lógica customizada
-                    new_env["DARKTABLE_LIB_PATH"] = f"{mount_point}/usr/lib/libdarktable.so"
+                    # Verifica onde está o libdarktable.so
+                    lib_so = Path(mount_point) / "usr/lib/libdarktable.so"
+                    if not lib_so.exists():
+                         lib_so = Path(mount_point) / "usr/lib64/libdarktable.so"
+                    
+                    if not lib_so.exists():
+                         # Tenta busca profunda se não achar nos padroes
+                         print("[AppImage] Procurando libdarktable.so...")
+                         found_libs = list(Path(mount_point).rglob("libdarktable.so"))
+                         if found_libs:
+                             lib_so = found_libs[0]
+                    
+                    if lib_so.exists():
+                        new_env["DARKTABLE_LIB_PATH"] = str(lib_so)
+                        print(f"[AppImage] Lib path: {lib_so}")
+                    
+                    # Tenta achar o darktable-cli dentro do AppImage para usar como comando CLI
+                    # Mas cuidado: rodar binários de dentro do AppImage pode falhar sem o ambiente do AppImage
+                    # Geralmente melhor usar o próprio AppImage como comando
+                    new_env["DARKTABLE_CLI_CMD"] = target_appimage 
 
                     self.env = new_env
                     return
@@ -353,10 +385,73 @@ def _flatpak_darktable_available() -> bool:
     if shutil.which("flatpak") is None:
         return False
 
+    # Check if org.darktable.Darktable is installed via flatpak info
+    # This is more robust than checking hardcoded paths which might vary
+    try:
+        subprocess.check_call(
+            ["flatpak", "info", "org.darktable.Darktable"], 
+            stdout=subprocess.DEVNULL, 
+            stderr=subprocess.DEVNULL
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
     for prefix in _flatpak_darktable_prefixes():
         if (prefix / "lib" / "libdarktable.so").exists() or (prefix / "lib64" / "libdarktable.so").exists():
             return True
     return False
+
+
+def _find_appimage() -> str | None:
+    """Procura por um AppImage do Darktable em locais comuns."""
+    # Prioritize specific known paths to avoid slow recursion
+    known_paths = [
+        Path.home() / "Apps/Darktable/Darktable.AppImage",
+        Path.home() / "Apps/Darktable.AppImage",
+    ]
+    for p in known_paths:
+        if p.exists():
+            return str(p)
+
+    search_dirs = [
+        Path.cwd(),
+        Path.home() / "Apps",
+        Path.home() / "Applications",
+        Path.home() / "Downloads",
+        Path.home() / "bin",
+    ]
+    
+    # Adicionar diretório pai do script se estivermos em modo dev
+    try:
+        search_dirs.append(Path(__file__).parent.parent)
+    except Exception:
+        pass
+
+    for d in search_dirs:
+        if not d.exists():
+            continue
+        
+        # Avoid recursive search in large directories like Downloads if possible, or limit depth?
+        # rglob is too slow for Downloads. Let's use glob for immediate children and
+        # maybe one level deep manually if needed. 
+        # But for 'Apps' recursion is usually fine.
+        
+        if d.name in ("Downloads", "bin"):
+             # Shallow search for these
+             glob_method = d.glob
+        else:
+             # Deep search for Apps/Applications
+             glob_method = d.rglob
+
+        for pattern in ["*Darktable*.AppImage", "*darktable*.AppImage"]:
+            try:
+                found = list(glob_method(pattern))
+                if found:
+                    return str(found[0].resolve())
+            except Exception:
+                pass
+    return None
 
 
 def _suggested_darktable_cli() -> str | None:
@@ -370,6 +465,14 @@ def _suggested_darktable_cli() -> str | None:
 
     if _flatpak_darktable_available():
         return "flatpak run --command=darktable-cli org.darktable.Darktable"
+
+    # Se tiver appimage, assumimos que ele contém o darktable-cli
+    # (Ou o usuário deve rodar o AppImage com argumentos específicos)
+    # Por enquanto, retornamos o caminho do AppImage como "comando CLI"
+    # Opcional: tentar verificar se 'darktable-cli' funciona chamando o AppImage
+    appimage = _find_appimage()
+    if appimage:
+        return appimage
 
     return None
 
@@ -587,10 +690,35 @@ def probe_darktable_state(
     }
 
     if missing:
-        return result
+        # Se falta algo, antes de desistir, vemos se achamos um AppImage
+        appimage_path = _find_appimage()
+        if appimage_path:
+             print(f"[probe] AppImage encontrado: {appimage_path}")
+             # Nesse caso, 'missing' pode conter 'darktable-cli', mas o AppImage supre isso.
+             # E o 'lua' é do sistema, que deve estar OK (se não, falha igual).
+        else:
+            return result
 
     try:
-        client = McpClient(DT_SERVER_CMD, protocol_version, client_info)
+        # Se achou appimage, passa ele
+        appimage_path = _find_appimage()
+        client = McpClient(
+            DT_SERVER_CMD, 
+            protocol_version, 
+            client_info, 
+            appimage_path=appimage_path
+        )
+        
+        # Precisamos conectar startar o processo
+        client.proc = subprocess.Popen(
+            client.command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=client.env # Importante usar o env modificado (LD_LIBRARY_PATH)
+        )
+
     except FileNotFoundError as exc:  # noqa: BLE001
         result["error"] = f"Falha ao iniciar servidor MCP: {exc}"
         return result
