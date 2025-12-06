@@ -11,6 +11,17 @@
 -- - export_collection (com suporte a ids)
 --------------------------------------------------
 
+local function get_script_dir()
+  local source = debug.getinfo(1, "S").source
+  if source:sub(1, 1) == "@" then
+    return source:sub(2):match("(.*/)") or "./"
+  end
+  return "./"
+end
+
+local script_dir = get_script_dir()
+package.path = package.path .. ";" .. script_dir .. "?.lua"
+
 local json   = require "dkjson"
 local package = require "package"
 
