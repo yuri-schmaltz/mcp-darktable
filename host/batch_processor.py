@@ -96,6 +96,10 @@ class BatchProcessor:
         system_prompt = load_prompt(mode, args.prompt_file, variant=args.prompt_variant)
         vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
         
+        if not vision_images and images and not args.text_only:
+            print("[erro] Nenhuma imagem encontrada no disco. Verifique se o drive está montado ou se o banco de dados do Darktable está atualizado.")
+            return None, None
+
         if vision_errors:
             logging.warning(f"[{mode}] Erros de imagem: {vision_errors}")
 
@@ -121,6 +125,7 @@ class BatchProcessor:
             edits = parsed.get("edits", [])
         except Exception as e:
             print(f"[rating] Erro JSON: {e}")
+            print(f"[rating] Resposta bruta do LLM:\n{answer}")
             return
 
         if not edits:
