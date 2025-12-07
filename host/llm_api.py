@@ -43,6 +43,7 @@ class OllamaProvider(LLMProvider):
         # Para compatibilidade com o código original, vamos usar requests direto com timeout.
         
         started = time.time()
+        logging.info(f"[Ollama] Aguardando resposta do modelo {self.model}...")
         # Nota: O código original usava post_json_with_retries. 
         # Aqui simplificaremos, mas em produção deveríamos manter os retries.
         resp = requests.post(chat_url, json=payload, timeout=self.timeout)

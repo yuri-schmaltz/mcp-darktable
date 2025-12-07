@@ -71,6 +71,25 @@ def build_messages(system_prompt: str, sample: list[dict], vision_images: list, 
     return messages
 
 
+def extract_json_from_markdown(text: str) -> str:
+    """
+    Extract JSON from markdown code blocks if present.
+    Handles cases where LLM wraps JSON in ```json ... ``` blocks.
+    """
+    import re
+    
+    # Check for markdown code block with json language specifier
+    pattern = r'```(?:json)?\s*\n(.*?)\n```'
+    match = re.search(pattern, text, re.DOTALL)
+    
+    if match:
+        return match.group(1).strip()
+    
+    # If no markdown block found, return original text
+    return text.strip()
+
+
+
 class BatchProcessor:
     def __init__(self, client, provider: LLMProvider, dry_run: bool = False):
         self.client = client
@@ -105,11 +124,21 @@ class BatchProcessor:
 
         messages = build_messages(system_prompt, sample, vision_images, self.provider_type)
         
-        logging.info(f"[{mode}] Enviando requisição ao LLM ({self.provider.model})...")
+        # Calculate approximate payload size
+        import json as json_module
+        payload_size_mb = len(json_module.dumps(messages)) / (1024 * 1024)
+        
+        logging.info(
+            f"[{mode}] Enviando {len(vision_images)} imagem(ns) ao LLM ({self.provider.model}, payload: {payload_size_mb:.1f} MB)..."
+        )
         logging.debug(f"[{mode}] Prompt System: {system_prompt[:100]}...")
         
         answer, meta = self.provider.chat(messages)
-        logging.info(f"[{mode}] Resposta recebida ({meta.get('latency_ms', 0)}ms)")
+        
+        answer_size_kb = len(answer) / 1024 if answer else 0
+        logging.info(
+            f"[{mode}] Resposta recebida ({meta.get('latency_ms', 0)}ms, {answer_size_kb:.1f} KB)"
+        )
 
         log_file = save_log(mode, args.source, sample, answer, extra={"llm": meta})
         logging.info(f"[{mode}] Log: {log_file}")
@@ -121,7 +150,8 @@ class BatchProcessor:
         if not answer: return
 
         try:
-            parsed = json.loads(answer)
+            json_str = extract_json_from_markdown(answer)
+            parsed = json.loads(json_str)
             edits = parsed.get("edits", [])
         except Exception as e:
             print(f"[rating] Erro JSON: {e}")
@@ -144,7 +174,8 @@ class BatchProcessor:
         if not answer: return
 
         try:
-            parsed = json.loads(answer)
+            json_str = extract_json_from_markdown(answer)
+            parsed = json.loads(json_str)
             tags = parsed.get("tags", [])
         except Exception as e:
             print(f"[tagging] Erro JSON: {e}")
@@ -170,7 +201,8 @@ class BatchProcessor:
         if not answer: return
 
         try:
-            parsed = json.loads(answer)
+            json_str = extract_json_from_markdown(answer)
+            parsed = json.loads(json_str)
             ids = parsed.get("ids_para_exportar") or parsed.get("ids") or []
         except:
             return

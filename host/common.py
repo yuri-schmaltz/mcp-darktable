@@ -646,10 +646,37 @@ def prepare_vision_payloads(images: Iterable[dict], attach_images: bool = True):
     if not attach_images:
         return payloads, errors
 
-    for img in images:
+    # Convert to list to get count
+    images_list = list(images)
+    total_count = len(images_list)
+    
+    if total_count > 0:
+        logging.info(f"Preparando {total_count} imagem(ns) para envio ao modelo...")
+    
+    total_b64_size = 0
+    
+    for idx, img in enumerate(images_list, 1):
         image_path = Path(img.get("path", "")) / str(img.get("filename", ""))
+        
+        # Get original file size
+        try:
+            original_size_mb = image_path.stat().st_size / (1024 * 1024)
+        except:
+            original_size_mb = 0
+        
         try:
             b64, data_url = encode_image_to_base64(image_path)
+            b64_size_kb = len(b64) / 1024
+            total_b64_size += len(b64)
+            
+            # Log every 10 images or if it's a large set, log less frequently
+            log_interval = 50 if total_count > 200 else 10
+            if idx % log_interval == 0 or idx == 1 or idx == total_count:
+                logging.info(
+                    f"Processando imagem {idx}/{total_count}: {image_path.name} "
+                    f"({original_size_mb:.1f} MB → {b64_size_kb:.0f} KB base64)"
+                )
+                
         except FileNotFoundError:
             errors.append(f"Arquivo não encontrado: {image_path}")
             continue
@@ -665,6 +692,10 @@ def prepare_vision_payloads(images: Iterable[dict], attach_images: bool = True):
                 data_url=data_url,
             )
         )
+    
+    if payloads:
+        total_mb = total_b64_size / (1024 * 1024)
+        logging.info(f"{len(payloads)} imagem(ns) preparada(s) ({total_mb:.1f} MB total em base64)")
 
     return payloads, errors
 
