@@ -64,6 +64,7 @@ class MCPGui(QMainWindow):
     error_signal = Signal(str)
     models_signal = Signal(list)
     collections_signal = Signal(list)
+    progress_update_signal = Signal(int, int, str)  # (current, total, message)
 
     def __init__(self) -> None:
         super().__init__()
@@ -87,6 +88,7 @@ class MCPGui(QMainWindow):
         self.error_signal.connect(self._show_error)
         self.models_signal.connect(self._update_model_options)
         self.collections_signal.connect(self._populate_collections)
+        self.progress_update_signal.connect(self._update_progress)
 
         self._apply_global_style()
         self._build_layout()
@@ -687,7 +689,7 @@ class MCPGui(QMainWindow):
         status_bar.setContentsMargins(0, 0, 0, 0)
 
         self.progress = QProgressBar()
-        self.progress.setRange(0, 1)
+        self.progress.setRange(0, 100)  # Determinate mode for percentage
         self.progress.setValue(0)
         self.progress.setTextVisible(True)
         self.progress.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1033,12 +1035,23 @@ class MCPGui(QMainWindow):
         # Travar/destravar UI
         self._set_controls_enabled(not running)
 
-        if running:
-            self.progress.setRange(0, 0)
-        else:
-            self.progress.setRange(0, 1)
+        if not running:
+            # Reset to 0% when stopping
             self.progress.setValue(0)
             self.progress.setFormat("Pronto.")
+
+    @Slot(int, int, str)
+    def _update_progress(self, current: int, total: int, message: str) -> None:
+        """Update progress bar with current status."""
+        if total > 0:
+            percentage = int((current / total) * 100)
+            self.progress.setValue(percentage)
+            self.progress.setFormat(f"{message} ({current}/{total}) - {percentage}%")
+        else:
+            # Indeterminate - just show message
+            self.progress.setValue(0)
+            self.progress.setFormat(message)
+
 
     def resizeEvent(self, event: QResizeEvent) -> None:  # type: ignore[override]
         super().resizeEvent(event)

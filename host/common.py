@@ -639,7 +639,11 @@ def encode_image_to_base64(image_path: Path, max_dimension: int = 1600) -> tuple
         return b64, f"data:{mime};base64,{b64}"
 
 
-def prepare_vision_payloads(images: Iterable[dict], attach_images: bool = True):
+def prepare_vision_payloads(
+    images: Iterable[dict], 
+    attach_images: bool = True,
+    progress_callback: Optional[Callable[[int, int, str], None]] = None
+):
     payloads: list[VisionImage] = []
     errors: list[str] = []
 
@@ -676,6 +680,10 @@ def prepare_vision_payloads(images: Iterable[dict], attach_images: bool = True):
                     f"Processando imagem {idx}/{total_count}: {image_path.name} "
                     f"({original_size_mb:.1f} MB → {b64_size_kb:.0f} KB base64)"
                 )
+            
+            # Report progress to GUI if callback provided
+            if progress_callback and (idx % 5 == 0 or idx == 1 or idx == total_count):
+                progress_callback(idx, total_count, "Preparando imagens")
                 
         except FileNotFoundError:
             errors.append(f"Arquivo não encontrado: {image_path}")
