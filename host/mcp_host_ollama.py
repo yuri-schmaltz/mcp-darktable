@@ -27,7 +27,7 @@ DEPENDENCY_BINARIES = ["lua", "darktable-cli"]
 
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
 OLLAMA_URL = DEFAULT_OLLAMA_URL
-OLLAMA_MODEL = "llama3.2"
+OLLAMA_MODEL = "qwen2.5vl:7b"
 
 def parse_args():
     p = argparse.ArgumentParser(description="Host MCP darktable + Ollama (Refactored)")
@@ -90,7 +90,7 @@ def main():
         return
 
     # 2. Setup Provider
-    provider = OllamaProvider(args.ollama_url, args.model or "llama3.2", args.timeout)
+    provider = OllamaProvider(args.ollama_url, args.model or "qwen2.5vl:7b", args.timeout)
     
     if args.download_model:
         print(f"Baixando {args.download_model}...")
