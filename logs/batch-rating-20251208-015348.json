@@ -1,0 +1,99 @@
+{
+  "timestamp": "20251208-015348",
+  "mode": "rating",
+  "source": "collection",
+  "images_sample": [
+    {
+      "colorlabels": [],
+      "id": 3497,
+      "filename": "_DSC5752.JPG",
+      "is_raw": false,
+      "rating": 4,
+      "path": "/home/yurix/Google/medias/imagens/amelie"
+    },
+    {
+      "colorlabels": [],
+      "id": 3498,
+      "filename": "_DSC5753.JPG",
+      "is_raw": false,
+      "rating": -1,
+      "path": "/home/yurix/Google/medias/imagens/amelie"
+    },
+    {
+      "colorlabels": [],
+      "id": 3499,
+      "filename": "_DSC5754.JPG",
+      "is_raw": false,
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie"
+    },
+    {
+      "colorlabels": [],
+      "id": 3500,
+      "filename": "_DSC5755.JPG",
+      "is_raw": false,
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie"
+    },
+    {
+      "colorlabels": [],
+      "id": 3501,
+      "filename": "_DSC5756.JPG",
+      "is_raw": false,
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie"
+    },
+    {
+      "colorlabels": [],
+      "id": 3502,
+      "filename": "_DSC5757.JPG",
+      "is_raw": false,
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie"
+    },
+    {
+      "colorlabels": [],
+      "id": 3503,
+      "filename": "_DSC5758.JPG",
+      "is_raw": false,
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie"
+    },
+    {
+      "colorlabels": [],
+      "id": 3504,
+      "filename": "_DSC5759.JPG",
+      "is_raw": false,
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie"
+    },
+    {
+      "colorlabels": [],
+      "id": 3505,
+      "filename": "_DSC5760.JPG",
+      "is_raw": false,
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie"
+    },
+    {
+      "colorlabels": [],
+      "id": 3506,
+      "filename": "_DSC5761.JPG",
+      "is_raw": false,
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie"
+    }
+  ],
+  "model_answer": "```json\n{\n  \"plano_de_acao\": [\n    {\n      \"etapa\": \"configurar_fundo\",\n      \"descrição\": \"Configurar o fundo para uma cena de luxo com elementos como chandeliers, flores e balões\"\n    },\n    {\n      \"etapa\": \"arrumar_cenografia\",\n      \"descrição\": \"Arrumar a cenografia para garantir que todos os elementos estejam perfeitamente alinhados e visíveis\"\n    },\n    {\n      \"etapa\": \"posicionar_pessoas\",\n      \"descrição\": \"Posicionar as pessoas de forma a capturar a alegria e a elegância da ocasião\"\n    },\n    {\n      \"etapa\": \"ajustar_fotografia\",\n      \"descrição\": \"Ajustar a fotografia para capturar a essência da festa, incluindo os detalhes do bolo e a decoração\"\n    }\n  ]\n}\n```",
+  "extra": {
+    "llm": {
+      "provider": "ollama",
+      "model": "qwen2.5vl:7b",
+      "url": "http://localhost:11434",
+      "status_code": 200,
+      "latency_ms": 18790,
+      "eval_count": 211,
+      "eval_duration": 3846383869
+    }
+  }
+}
