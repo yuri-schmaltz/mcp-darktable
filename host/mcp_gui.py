@@ -45,7 +45,6 @@ from PySide6.QtWidgets import (
 
 from common import probe_darktable_state
 from interactive_cli import DEFAULT_LIMIT, DEFAULT_MIN_RATING, RunConfig
-from mcp_host_lmstudio import LMSTUDIO_MODEL, LMSTUDIO_URL
 from mcp_host_ollama import (
     APP_VERSION as HOST_APP_VERSION,
     OLLAMA_MODEL,
@@ -559,27 +558,6 @@ class MCPGui(QMainWindow):
             "Quando desmarcado, o host enviará apenas metadados e texto ao modelo, sem anexar arquivos de imagem."
         )
         config_form.addRow("Imagens:", self.attach_images_check)
-
-        # ------------------------------- Seção LLM ------------------------------
-
-        self.host_group = QButtonGroup(self)
-        self.host_ollama = QRadioButton("Ollama")
-        self.host_ollama.setChecked(True)
-        self.host_lmstudio = QRadioButton("LM Studio")
-        self.host_group.addButton(self.host_ollama)
-        self.host_group.addButton(self.host_lmstudio)
-        self.host_ollama.setToolTip("Usa um servidor Ollama para executar o modelo.")
-        self.host_lmstudio.setToolTip(
-            "Usa um servidor LM Studio para executar o modelo."
-        )
-
-        host_widget = QWidget()
-        host_layout = QHBoxLayout(host_widget)
-        host_layout.setContentsMargins(0, 0, 0, 0)
-        host_layout.setSpacing(18)
-        host_layout.addWidget(self.host_ollama)
-        host_layout.addWidget(self.host_lmstudio)
-        host_layout.addStretch()
 
         self.model_combo = QComboBox()
         self.model_combo.setEditable(True)
@@ -1198,8 +1176,8 @@ class MCPGui(QMainWindow):
             if not export_dir.is_dir():
                 raise ValueError(f"Diretório de export inválido: {export_dir}")
 
-        model_default = OLLAMA_MODEL if host == "ollama" else LMSTUDIO_MODEL
-        url_default = OLLAMA_URL if host == "ollama" else LMSTUDIO_URL
+        model_default = OLLAMA_MODEL
+        url_default = OLLAMA_URL
 
         # mapeia nível de prompt (básico/avançado)
         prompt_variant_text = ""
@@ -1211,7 +1189,7 @@ class MCPGui(QMainWindow):
         text_only = not bool(self.attach_images_check.isChecked())
 
         return RunConfig(
-            host=host,
+            # host="ollama",  # Removed from RunConfig
             mode=mode,
             source=source,
             path_contains=path_contains,
@@ -1233,15 +1211,13 @@ class MCPGui(QMainWindow):
     # ----------------------------- Utilidades -------------------------------------------
 
     def _check_connection_and_fetch_models(self) -> None:
-        host = self._selected_host()
+        host = "ollama"
 
         def task() -> None:
-            base_url = self.url_edit.text().strip() or (
-                OLLAMA_URL if host == "ollama" else LMSTUDIO_URL
-            )
+            base_url = self.url_edit.text().strip() or OLLAMA_URL
             models = self._fetch_available_models(host, base_url)
 
-            readable = "Ollama" if host == "ollama" else "LM Studio"
+            readable = "Ollama"
             self._append_log(
                 f"[ok] {readable} acessível em {base_url}. {len(models)} modelo(s) encontrado(s)."
             )
@@ -1327,9 +1303,8 @@ class MCPGui(QMainWindow):
         self._run_async("Consultando darktable...", task)
 
     def _fetch_available_models(self, host: str, url: str) -> list[str]:
-        if host == "ollama":
-            return self._fetch_ollama_models(url)
-        return self._fetch_lmstudio_models(url)
+        # Host is always ollama now
+        return self._fetch_ollama_models(url)
 
     def _fetch_ollama_models(self, url: str) -> list[str]:
         base = url.rstrip("/") or OLLAMA_URL
@@ -1346,32 +1321,6 @@ class MCPGui(QMainWindow):
 
         data = resp.json()
         models = [m.get("name", "") for m in data.get("models", []) if m.get("name")]
-        return models
-
-    def _fetch_lmstudio_models(self, url: str) -> list[str]:
-        cleaned = url.rstrip("/") or LMSTUDIO_URL
-        v1_idx = cleaned.find("/v1")
-        if v1_idx != -1:
-            base = cleaned[: v1_idx + 3]
-        else:
-            base = cleaned
-            if not base.endswith("/v1"):
-                base = base + "/v1"
-
-        models_url = f"{base}/models"
-
-        try:
-            resp = requests.get(models_url, timeout=5)
-            resp.raise_for_status()
-        except requests.exceptions.RequestException as exc:
-            raise RuntimeError(
-                f"Falha ao consultar modelos do LM Studio em {models_url}. "
-                "Verifique a URL e se o servidor está em execução."
-            ) from exc
-
-        data = resp.json()
-        items = data.get("data") or []
-        models = [item.get("id", "") for item in items if item.get("id")]
         return models
 
     @Slot(list)
@@ -1466,7 +1415,7 @@ class MCPGui(QMainWindow):
 
 
     def _selected_host(self) -> str:
-        return "ollama" if self.host_ollama.isChecked() else "lmstudio"
+        return "ollama"
 
 
 def main() -> None:

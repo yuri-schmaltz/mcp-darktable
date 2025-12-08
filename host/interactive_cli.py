@@ -15,7 +15,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-import mcp_host_lmstudio
 import mcp_host_ollama
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -25,7 +24,7 @@ DEFAULT_MIN_RATING = -2
 
 @dataclass
 class RunConfig:
-    host: str  # "ollama" ou "lmstudio"
+    # host: str  -- Removed, always Ollama
     mode: str
     source: str
     path_contains: Optional[str] = None
@@ -44,11 +43,7 @@ class RunConfig:
     extra_flags: List[str] = field(default_factory=list)
 
     def build_command(self) -> List[str]:
-        script = (
-            BASE_DIR / "mcp_host_ollama.py"
-            if self.host == "ollama"
-            else BASE_DIR / "mcp_host_lmstudio.py"
-        )
+        script = BASE_DIR / "mcp_host_ollama.py"
 
         cmd: List[str] = [sys.executable, str(script), "--mode", self.mode, "--source", self.source]
 
@@ -69,7 +64,7 @@ class RunConfig:
         if self.model:
             cmd += ["--model", self.model]
         if self.llm_url:
-            flag = "--ollama-url" if self.host == "ollama" else "--lm-url"
+            flag = "--ollama-url"
             cmd += [flag, self.llm_url]
         if self.prompt_file:
             cmd += ["--prompt-file", str(self.prompt_file)]
@@ -128,7 +123,7 @@ def _ask_optional_str(prompt: str) -> Optional[str]:
 # ----------------------------- MONTAGEM DA CONFIG -----------------------------
 def gather_config() -> RunConfig:
     print("=== darktable-mcp interface interativa ===")
-    host = _ask_choice("Escolha o host LLM", ["ollama", "lmstudio"], default="ollama")
+    # host = _ask_choice("Escolha o host LLM", ["ollama", "lmstudio"], default="ollama")
     mode = _ask_choice(
         "Modo", ["rating", "tagging", "export", "tratamento", "completo"], default="rating"
     )
@@ -158,13 +153,9 @@ def gather_config() -> RunConfig:
         "Anexar as imagens ao modelo (multimodal)?", default=True
     )
 
-    model_default = (
-        mcp_host_ollama.OLLAMA_MODEL if host == "ollama" else mcp_host_lmstudio.LMSTUDIO_MODEL
-    )
+    model_default = mcp_host_ollama.OLLAMA_MODEL
     model = _ask_optional_str(f"Modelo do LLM (default={model_default})")
-    llm_url_default = (
-        mcp_host_ollama.OLLAMA_URL if host == "ollama" else mcp_host_lmstudio.LMSTUDIO_URL
-    )
+    llm_url_default = mcp_host_ollama.OLLAMA_URL
     llm_url = _ask_optional_str(f"URL do servidor (default={llm_url_default})")
 
     prompt_file_input = _ask_optional_str("Caminho para prompt personalizado (.md)")
@@ -185,7 +176,7 @@ def gather_config() -> RunConfig:
         extra_flags.append("--check-deps")
 
     return RunConfig(
-        host=host,
+        # host=host,
         mode=mode,
         source=source,
         path_contains=path_contains,
@@ -210,13 +201,11 @@ def main() -> None:
     config = gather_config()
     cmd = config.build_command()
 
-    default_url = mcp_host_ollama.OLLAMA_URL if config.host == "ollama" else mcp_host_lmstudio.LMSTUDIO_URL
-    default_model = (
-        mcp_host_ollama.OLLAMA_MODEL if config.host == "ollama" else mcp_host_lmstudio.LMSTUDIO_MODEL
-    )
+    default_url = mcp_host_ollama.OLLAMA_URL
+    default_model = mcp_host_ollama.OLLAMA_MODEL
 
     print("\n--- Resumo da execução ---")
-    print(f"Host: {config.host}")
+    # print(f"Host: {config.host}")
     print(f"Modo: {config.mode}")
     print(f"Fonte: {config.source}")
     if config.path_contains:
