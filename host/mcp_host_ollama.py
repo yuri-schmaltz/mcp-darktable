@@ -50,7 +50,7 @@ def parse_args():
     # LLM
     p.add_argument("--model", help="Modelo Ollama")
     p.add_argument("--ollama-url", default=DEFAULT_OLLAMA_URL)
-    p.add_argument("--timeout", type=float, default=60.0)
+    p.add_argument("--timeout", type=float, default=600.0)
     p.add_argument("--text-only", action="store_true")
     p.add_argument("--prompt-file")
     p.add_argument("--prompt-variant", default="basico")
