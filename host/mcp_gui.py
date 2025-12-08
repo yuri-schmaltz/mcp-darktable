@@ -920,20 +920,16 @@ class MCPGui(QMainWindow):
         self._update_mode_fields(self.mode_combo.currentText())
 
     def _connect_dynamic_behaviors(self) -> None:
-        self.host_ollama.toggled.connect(
-            lambda checked: checked and self._apply_host_defaults()
-        )
-        self.host_lmstudio.toggled.connect(
-            lambda checked: checked and self._apply_host_defaults()
-        )
+        # self.host_ollama.toggled.connect(...) removed
+        # self.host_lmstudio.toggled.connect(...) removed
         self.source_combo.currentTextChanged.connect(self._update_source_fields)
         self.source_combo.currentTextChanged.connect(self._on_source_changed)
         self.mode_combo.currentTextChanged.connect(self._update_mode_fields)
 
     def _apply_host_defaults(self) -> None:
-        host = self._selected_host()
-        model_default = OLLAMA_MODEL if host == "ollama" else LMSTUDIO_MODEL
-        url_default = OLLAMA_URL if host == "ollama" else LMSTUDIO_URL
+        host = "ollama"
+        model_default = OLLAMA_MODEL
+        url_default = OLLAMA_URL
 
         current_model = self.model_combo.currentText().strip()
         current_url = self.url_edit.text().strip()
@@ -1066,8 +1062,8 @@ class MCPGui(QMainWindow):
             self.only_raw_check,
             self.dry_run_check,
             self.attach_images_check,
-            self.host_ollama,
-            self.host_lmstudio,
+            # self.host_ollama,   -- Removed
+            # self.host_lmstudio, -- Removed
             self.model_combo,
             self.url_edit,
             self.prompt_variant_combo,
