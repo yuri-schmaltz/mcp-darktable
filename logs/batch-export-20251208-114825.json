@@ -1,0 +1,108 @@
+{
+  "timestamp": "20251208-114825",
+  "mode": "export",
+  "source": "collection",
+  "images_sample": [
+    {
+      "filename": "_DSC5752.JPG",
+      "is_raw": false,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3497,
+      "rating": 4,
+      "colorlabels": []
+    },
+    {
+      "filename": "_DSC5753.JPG",
+      "is_raw": false,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3498,
+      "rating": -1,
+      "colorlabels": []
+    },
+    {
+      "filename": "_DSC5754.JPG",
+      "is_raw": false,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3499,
+      "rating": 1,
+      "colorlabels": []
+    },
+    {
+      "filename": "_DSC5755.JPG",
+      "is_raw": false,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3500,
+      "rating": 1,
+      "colorlabels": []
+    },
+    {
+      "filename": "_DSC5756.JPG",
+      "is_raw": false,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3501,
+      "rating": 1,
+      "colorlabels": []
+    },
+    {
+      "filename": "_DSC5757.JPG",
+      "is_raw": false,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3502,
+      "rating": 1,
+      "colorlabels": []
+    },
+    {
+      "filename": "_DSC5758.JPG",
+      "is_raw": false,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3503,
+      "rating": 1,
+      "colorlabels": []
+    },
+    {
+      "filename": "_DSC5759.JPG",
+      "is_raw": false,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3504,
+      "rating": 1,
+      "colorlabels": []
+    },
+    {
+      "filename": "_DSC5760.JPG",
+      "is_raw": false,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3505,
+      "rating": 1,
+      "colorlabels": []
+    },
+    {
+      "filename": "_DSC5761.JPG",
+      "is_raw": false,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3506,
+      "rating": 1,
+      "colorlabels": []
+    }
+  ],
+  "model_answer": "```json\n{\n  \"ids_para_exportar\": [3497],\n  \"notas\": {\n    \"3497\": \"rating >= 3 e colorlabel 'green' ou 'blue'\"\n  }\n}\n```",
+  "extra": {
+    "llm": {
+      "provider": "ollama",
+      "model": "qwen2.5vl:7b",
+      "url": "http://localhost:11434",
+      "status_code": 200,
+      "latency_ms": 1117,
+      "eval_count": 50,
+      "eval_duration": 796857158
+    },
+    "export_result": {
+      "content": [
+        {
+          "text": "Exportadas 0 imagens para /home/yurix/Imagens",
+          "type": "text"
+        }
+      ],
+      "isError": false
+    }
+  }
+}

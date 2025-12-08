@@ -1,0 +1,99 @@
+{
+  "timestamp": "20251208-114656",
+  "mode": "tratamento",
+  "source": "collection",
+  "images_sample": [
+    {
+      "filename": "_DSC5752.JPG",
+      "rating": 4,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3497,
+      "colorlabels": [],
+      "is_raw": false
+    },
+    {
+      "filename": "_DSC5753.JPG",
+      "rating": -1,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3498,
+      "colorlabels": [],
+      "is_raw": false
+    },
+    {
+      "filename": "_DSC5754.JPG",
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3499,
+      "colorlabels": [],
+      "is_raw": false
+    },
+    {
+      "filename": "_DSC5755.JPG",
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3500,
+      "colorlabels": [],
+      "is_raw": false
+    },
+    {
+      "filename": "_DSC5756.JPG",
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3501,
+      "colorlabels": [],
+      "is_raw": false
+    },
+    {
+      "filename": "_DSC5757.JPG",
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3502,
+      "colorlabels": [],
+      "is_raw": false
+    },
+    {
+      "filename": "_DSC5758.JPG",
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3503,
+      "colorlabels": [],
+      "is_raw": false
+    },
+    {
+      "filename": "_DSC5759.JPG",
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3504,
+      "colorlabels": [],
+      "is_raw": false
+    },
+    {
+      "filename": "_DSC5760.JPG",
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3505,
+      "colorlabels": [],
+      "is_raw": false
+    },
+    {
+      "filename": "_DSC5761.JPG",
+      "rating": 1,
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "id": 3506,
+      "colorlabels": [],
+      "is_raw": false
+    }
+  ],
+  "model_answer": "{\n  \"ids_para_exportar\": [3497],\n  \"notas\": {\"3497\": \"rating >= 3\"}\n}",
+  "extra": {
+    "llm": {
+      "provider": "ollama",
+      "model": "qwen2.5vl:7b",
+      "url": "http://localhost:11434",
+      "status_code": 200,
+      "latency_ms": 6247,
+      "eval_count": 33,
+      "eval_duration": 530111360
+    }
+  }
+}

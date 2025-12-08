@@ -633,13 +633,18 @@ local function tool_list_by_tag(args)
   local min_rating = args.min_rating or -2
   local only_raw   = args.only_raw or false
 
-  local tag = dt.tags.create(tag_name)
-  local images = dt.tags.get_images(tag)
-  local result = {}
-
-  for _, img in ipairs(images) do
+  -- Fix: dt.tags.get_images não existe. Iterar database.
+  for _, img in ipairs(dt.database) do
     if (not only_raw or img.is_raw) and (img.rating or 0) >= min_rating then
-      table.insert(result, image_to_metadata(img))
+      -- Verifica se a imagem possui a tag
+      local img_tags = dt.tags.get_tags(img)
+      for _, t in ipairs(img_tags) do
+        -- Comparação exata de string (nome da tag)
+        if t.name == tag_name then
+          table.insert(result, image_to_metadata(img))
+          break
+        end
+      end
     end
   end
 
