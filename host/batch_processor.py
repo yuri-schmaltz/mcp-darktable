@@ -268,25 +268,81 @@ class BatchProcessor:
             tid = t.get("id")
             if not tid: continue
             
-            # Prepare batch edits
+            # Prepare batch edits (Ratings / Color Labels)
             if "rating" in t:
                 rating_edits.append({"id": tid, "rating": t["rating"]})
             if "color_label" in t:
                 color_edits.append({"id": tid, "color": t["color_label"]})
-                
-            # Log specific suggestions
-            notes = t.get("notes", "")
-            img_meta = next((img for img in (fetch_images(self.client, args) or []) if img.get("id") == tid), None)
-            name = img_meta.get("filename", f"ID {tid}") if img_meta else f"ID {tid}"
             
+            # Handle Style Generation (Exposure)
+            style_params = {}
             changes = []
+            
             if "rating" in t: changes.append(f"Rating {t['rating']}")
             if "color_label" in t: changes.append(f"Label {t['color_label']}")
             
+            # Check for exposure adjustment in JSON
+            # Expecting schema extension: "exposure": 0.5
+            if "exposure" in t:
+                try:
+                    ev = float(t["exposure"])
+                    if abs(ev) > 0.01: # Ignore near-zero
+                        style_params["exposure"] = ev
+                        changes.append(f"Exposure {ev:+.2f}")
+                except (ValueError, TypeError):
+                    pass
+            
+            # Log suggestion
+            img_meta = next((img for img in (fetch_images(self.client, args) or []) if img.get("id") == tid), None)
+            name = img_meta.get("filename", f"ID {tid}") if img_meta else f"ID {tid}"
+            notes = t.get("notes", "")
+
             print(f"  • {name}: {', '.join(changes)}")
             if notes:
                 print(f"    Sugestão: {notes}")
+            
+            # Generate and Apply Style if needed
+            if style_params and not self.dry_run:
+                try:
+                    from style_generator import DarktableStyleGenerator
+                    generator = DarktableStyleGenerator(Path.home() / ".config/darktable/styles/mcp_generated")
+                    
+                    style_name = f"MCP Auto {tid} Exp{style_params['exposure']:+.1f}"
+                    style_path = generator.generate_style(style_name, style_params)
+                    
+                    # Import and Apply (Requires new tools support)
+                    # We send the path to the server to import
+                    # Then apply by name
+                    
+                    # Tool: import_style(path)
+                    res_imp = self.client.call_tool("import_style", {"style_path": str(style_path)})
+                    
+                    # Tool: apply_style(style_name, image_id)
+                    # Note: We can batch if many images get SAME style, but here it's per-image specific
+                    res_app = self.client.call_tool("apply_style", {"style_name": style_name, "image_ids": [tid]})
+                    
+                    print(f"    [style] Estilo '{style_name}' criado e aplicado.")
+                except Exception as e:
+                    print(f"    [style] Erro ao aplicar estilo: {e}")
 
+        if self.dry_run:
+            print("[tratamento] DRY-RUN. Nenhuma alteração aplicada.")
+            return
+
+        # Apply Ratings and Colors
+        if rating_edits and not self.dry_run:
+            try:
+                self.client.call_tool("apply_batch_edits", {"edits": rating_edits})
+                print(f"[tratamento] Ratings aplicados em {len(rating_edits)} imagens.")
+            except Exception as e:
+                print(f"[tratamento] Erro ao aplicar ratings: {e}")
+
+        if color_edits and not self.dry_run:
+            try:
+                self.client.call_tool("set_colorlabel_batch", {"edits": color_edits, "overwrite": True})
+                print(f"[tratamento] Color labels aplicados em {len(color_edits)} imagens.")
+            except Exception as e:
+                print(f"[tratamento] Erro ao aplicar color labels: {e}")
         if self.dry_run:
             print("[tratamento] DRY-RUN. Nenhuma alteração aplicada.")
             return

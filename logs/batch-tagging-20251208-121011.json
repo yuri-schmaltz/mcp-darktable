@@ -1,0 +1,99 @@
+{
+  "timestamp": "20251208-121011",
+  "mode": "tagging",
+  "source": "all",
+  "images_sample": [
+    {
+      "is_raw": false,
+      "id": 3497,
+      "filename": "_DSC5752.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 4
+    },
+    {
+      "is_raw": false,
+      "id": 3498,
+      "filename": "_DSC5753.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": -1
+    },
+    {
+      "is_raw": false,
+      "id": 3499,
+      "filename": "_DSC5754.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3500,
+      "filename": "_DSC5755.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3501,
+      "filename": "_DSC5756.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3502,
+      "filename": "_DSC5757.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3503,
+      "filename": "_DSC5758.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3504,
+      "filename": "_DSC5759.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3505,
+      "filename": "_DSC5760.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3506,
+      "filename": "_DSC5761.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    }
+  ],
+  "model_answer": "```json\n{\n  \"plano_de_acao\": [\n    {\n      \"etapa\": \"configurar_fundo\",\n      \"descrição\": \"Configurar o fundo para uma cena de luxo com decoração elegante e chandeliers.\"\n    },\n    {\n      \"etapa\": \"arrumar_flores\",\n      \"descrição\": \"Arrumar flores vermelhas em vasos altos para complementar a decoração.\"\n    },\n    {\n      \"etapa\": \"arrumar_baloes\",\n      \"descrição\": \"Arrumar balões amarelos em um círculo para criar um efeito de festa.\"\n    },\n    {\n      \"etapa\": \"arrumar_bolo\",\n      \"descrição\": \"Arrumar um bolo grande e elaborado com várias camadas e decoração dourada.\"\n    },\n    {\n      \"etapa\": \"arrumar_cadeiras\",\n      \"descrição\": \"Arrumar cadeiras de estilo clássico para o modelo sentar.\"\n    },\n    {\n      \"etapa\": \"arrumar_foto\",\n      \"descrição\": \"Tirar fotos com o modelo sentado na cadeira, posando de forma elegante.\"\n    }\n  ]\n}\n```",
+  "extra": {
+    "llm": {
+      "provider": "ollama",
+      "model": "qwen2.5vl:7b",
+      "url": "http://localhost:11434",
+      "status_code": 200,
+      "latency_ms": 19980,
+      "eval_count": 274,
+      "eval_duration": 5034768034
+    }
+  }
+}

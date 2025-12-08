@@ -1,0 +1,99 @@
+{
+  "timestamp": "20251208-121036",
+  "mode": "tratamento",
+  "source": "all",
+  "images_sample": [
+    {
+      "is_raw": false,
+      "id": 3497,
+      "filename": "_DSC5752.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 4
+    },
+    {
+      "is_raw": false,
+      "id": 3498,
+      "filename": "_DSC5753.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": -1
+    },
+    {
+      "is_raw": false,
+      "id": 3499,
+      "filename": "_DSC5754.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3500,
+      "filename": "_DSC5755.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3501,
+      "filename": "_DSC5756.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3502,
+      "filename": "_DSC5757.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3503,
+      "filename": "_DSC5758.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3504,
+      "filename": "_DSC5759.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3505,
+      "filename": "_DSC5760.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    },
+    {
+      "is_raw": false,
+      "id": 3506,
+      "filename": "_DSC5761.JPG",
+      "path": "/home/yurix/Google/medias/imagens/amelie",
+      "colorlabels": [],
+      "rating": 1
+    }
+  ],
+  "model_answer": "```json\n{\n  \"plano_de_acao\": [\n    {\n      \"etapa\": \"configurar_fotografia\",\n      \"descrição\": \"Ajustar a iluminação e a composição para capturar a imagem da pessoa sentada na cadeira de maneira clara e atraente.\"\n    },\n    {\n      \"etapa\": \"compor_fotografia\",\n      \"descrição\": \"Posicionar a pessoa de forma que ela esteja centralizada na imagem, com o fundo decorado visível e agradável.\"\n    },\n    {\n      \"etapa\": \"executar_fotografia\",\n      \"descrição\": \"Tirar a foto, garantindo que a pessoa esteja sorrindo e a imagem capture a atmosfera festiva do ambiente.\"\n    },\n    {\n      \"etapa\": \"processar_fotografia\",\n      \"descrição\": \"Ajustar a exposição, cor e nitidez da imagem para garantir que ela esteja clara e atraente.\"\n    },\n    {\n      \"etapa\": \"salvar_fotografia\",\n      \"descrição\": \"Salvar a imagem processada em um formato apropriado, como JPEG ou PNG, com o nome adequado.\"\n    }\n  ]\n}\n```",
+  "extra": {
+    "llm": {
+      "provider": "ollama",
+      "model": "qwen2.5vl:7b",
+      "url": "http://localhost:11434",
+      "status_code": 200,
+      "latency_ms": 19726,
+      "eval_count": 276,
+      "eval_duration": 5035856417
+    }
+  }
+}

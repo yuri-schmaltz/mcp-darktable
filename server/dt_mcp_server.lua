@@ -768,6 +768,78 @@ local function tool_set_colorlabel_batch(args)
 end
 
 --------------------------------------------------
+-- 4.8 import_style
+-- args: { style_path: string }
+--------------------------------------------------
+local function tool_import_style(args)
+  if not args or type(args.style_path) ~= "string" then
+    return mcp_error("style_path (string) é obrigatório", "invalid_args", "style_path")
+  end
+
+  local path = args.style_path
+  
+  -- Check if dt.styles.import exists (API version check)
+  if dt.styles and dt.styles.import then
+    local status, result = pcall(dt.styles.import, path)
+    if status then
+      return {
+        content = { { type = "text", text = "Style imported successfully" } },
+        isError = false
+      }
+    else
+      return mcp_error("Erro ao importar estilo: " .. tostring(result), "import_error", "dt.styles.import")
+    end
+  else
+    return mcp_error("API dt.styles.import não disponível nesta versão do Darktable", "api_missing", "dt.styles")
+  end
+end
+
+--------------------------------------------------
+-- 4.9 apply_style
+-- args: { style_name: string, image_ids: [number] }
+--------------------------------------------------
+local function tool_apply_style(args)
+  if not args or type(args.style_name) ~= "string" or type(args.image_ids) ~= "table" then
+    return mcp_error("style_name (string) e image_ids (list) são obrigatórios", "invalid_args", "style_name")
+  end
+
+  local style_name = args.style_name
+  local style = nil
+
+  -- Find style by name
+  if dt.styles then
+    for _, s in ipairs(dt.styles) do
+      if s.name == style_name then
+        style = s
+        break
+      end
+    end
+  end
+
+  if not style then
+    -- Try forcing a reload? No API for that
+    return mcp_error("Estilo não encontrado: " .. style_name, "style_not_found", "style_name")
+  end
+
+  local count = 0
+  for _, id in ipairs(args.image_ids) do
+    local img = dt.database[id]
+    if img then
+        dt.styles.apply(style, img)
+        count = count + 1
+    end
+  end
+
+  return {
+    content = {
+        { type = "text", text = string.format("Estilo '%s' aplicado em %d imagens", style_name, count) }
+    },
+    isError = false
+  }
+end
+
+
+--------------------------------------------------
 -- 4.6 tag_batch
 -- args: { tag: string, ids: [ number ] }
 --------------------------------------------------
@@ -1226,6 +1298,10 @@ local function handle_tools_call(req)
     result = tool_tag_batch(args)
   elseif name == "export_collection" then
     result = tool_export_collection(args)
+  elseif name == "import_style" then
+    result = tool_import_style(args)
+  elseif name == "apply_style" then
+    result = tool_apply_style(args)
   else
     send_error(req.id, -32601, "Unknown tool: " .. tostring(name))
     return
@@ -1267,3 +1343,5 @@ for line in io.lines() do
     end
   end
 end
+
+

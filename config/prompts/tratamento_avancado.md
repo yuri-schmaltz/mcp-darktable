@@ -14,11 +14,14 @@ Retorne APENAS um JSON válido com o seguinte formato:
       "id": 123,
       "rating": 4, 
       "color_label": "green", 
+      "exposure": 0.5,
       "notes": "Aumentar contraste e saturação nas sombras."
     }
   ]
 }
 
-Se a imagem estiver tecnicamente ruim ou descartável, atribua rating -1 ou 0 e label 'red'.
+- `exposure`: Ajuste de exposição em EV (ex: 0.5, -1.0). Use 0.0 se não precisar.
+- `rating`: -1 (rejeitar) a 5 (excelente).
+- `color_label`: red, yellow, green, blue, purple.
 Se estiver excelente, rating 5 e label 'green' ou 'purple'.
 Se precisar de revisão, label 'yellow'.
