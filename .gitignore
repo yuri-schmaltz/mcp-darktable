@@ -13,3 +13,6 @@ logs/batch-tratamento-20251208-123344.json
 logs/mcp_host_debug.log
 logs/mcp_host_structured.json
 archive/
+.coverage
+tests/__pycache__/
+.pytest_cache/
