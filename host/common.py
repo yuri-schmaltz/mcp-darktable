@@ -11,10 +11,12 @@ import time
 import io
 import logging
 import logging.handlers
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Callable
 
 import requests
 
@@ -727,6 +729,127 @@ def prepare_vision_payloads(
         logging.info(f"{len(payloads)} imagem(ns) preparada(s) ({total_mb:.1f} MB total em base64)")
 
     return payloads, errors
+
+
+def prepare_vision_payloads_async(
+    images: Iterable[dict], 
+    attach_images: bool = True,
+    progress_callback: Optional[Callable[[int, int, str], None]] = None,
+    max_workers: int = 4
+):
+    """
+    Asynchronous version of prepare_vision_payloads using ThreadPoolExecutor.
+    
+    Processes multiple images in parallel for better performance on multi-core systems.
+    Maintains compatibility with progress callbacks and error handling.
+    
+    Args:
+        images: Iterable of image dictionaries
+        attach_images: Whether to attach images or not
+        progress_callback: Optional callback for progress updates (current, total, message)
+        max_workers: Maximum number of worker threads (default: 4)
+    
+    Returns:
+        Tuple of (payloads list, errors list)
+    """
+    payloads: list[VisionImage] = []
+    errors: list[str] = []
+    
+    if not attach_images:
+        return payloads, errors
+    
+    # Convert to list to get count
+    images_list = list(images)
+    total_count = len(images_list)
+    
+    if total_count == 0:
+        return payloads, errors
+    
+    logging.info(f"Preparando {total_count} imagem(ns) para envio ao modelo (async com {max_workers} workers)...")
+    
+    # Thread-safe counter and list
+    completed_lock = threading.Lock()
+    completed_count = [0]  # Use list to allow modification in nested function
+    total_b64_size = [0]
+    
+    def process_single_image(idx: int, img: dict):
+        """Process a single image and return result."""
+        image_path = Path(img.get("path", "")) / str(img.get("filename", ""))
+        
+        # Get original file size
+        try:
+            original_size_mb = image_path.stat().st_size / (1024 * 1024)
+        except:
+            original_size_mb = 0
+        
+        try:
+            b64, data_url = encode_image_to_base64(image_path)
+            b64_size_kb = len(b64) / 1024
+            
+            # Thread-safe updates
+            with completed_lock:
+                completed_count[0] += 1
+                total_b64_size[0] += len(b64)
+                current = completed_count[0]
+            
+            # Log every 10 images or if it's a large set, log less frequently
+            log_interval = 50 if total_count > 200 else 10
+            if idx % log_interval == 0 or idx == 1 or idx == total_count:
+                logging.info(
+                    f"Processando imagem {idx}/{total_count}: {image_path.name} "
+                    f"({original_size_mb:.1f} MB → {b64_size_kb:.0f} KB base64)"
+                )
+            
+            # Report progress to GUI if callback provided (every 3 images)
+            if progress_callback and (current % 3 == 0 or current == 1 or current == total_count):
+                progress_callback(current, total_count, "Preparando imagens")
+            
+            return (idx, VisionImage(
+                meta=img,
+                path=image_path,
+                b64=b64,
+                data_url=data_url,
+            ), None)
+            
+        except FileNotFoundError:
+            error_msg = f"Arquivo não encontrado: {image_path}"
+            return (idx, None, error_msg)
+        except OSError as exc:
+            error_msg = f"Falha ao ler {image_path}: {exc}"
+            return (idx, None, error_msg)
+        except Exception as exc:
+            error_msg = f"Erro inesperado processando {image_path}: {exc}"
+            return (idx, None, error_msg)
+    
+    # Process images in parallel
+    results = {}  # idx -> (VisionImage or None, error or None)
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        futures = {
+            executor.submit(process_single_image, idx, img): idx 
+            for idx, img in enumerate(images_list, 1)
+        }
+        
+        # Collect results as they complete
+        for future in as_completed(futures):
+            idx, payload, error = future.result()
+            results[idx] = (payload, error)
+    
+    # Reconstruct payloads in original order
+    for idx in sorted(results.keys()):
+        payload, error = results[idx]
+        if error:
+            errors.append(error)
+        elif payload:
+            payloads.append(payload)
+    
+    if payloads:
+        total_mb = total_b64_size[0] / (1024 * 1024)
+        logging.info(f"{len(payloads)} imagem(ns) preparada(s) ({total_mb:.1f} MB total em base64)")
+    
+    return payloads, errors
+
 
 
 def fallback_user_prompt(sample: list[dict]) -> str:

@@ -9,6 +9,7 @@ from common import (
     fetch_images,
     load_prompt,
     prepare_vision_payloads,
+    prepare_vision_payloads_async,
     save_log,
     fallback_user_prompt,
     append_export_result_to_log,
@@ -117,7 +118,12 @@ class BatchProcessor:
 
         sample = images[: args.limit]
         system_prompt = load_prompt(mode, args.prompt_file, variant=args.prompt_variant)
-        vision_images, vision_errors = prepare_vision_payloads(sample, attach_images=not args.text_only)
+        vision_images, vision_errors = prepare_vision_payloads_async(
+            sample, 
+            attach_images=not args.text_only,
+            progress_callback=progress_callback,
+            max_workers=4
+        )
         
         if not vision_images and images and not args.text_only:
             print("[erro] Nenhuma imagem encontrada no disco. Verifique se o drive está montado ou se o banco de dados do Darktable está atualizado.")
