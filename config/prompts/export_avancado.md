@@ -1,3 +1,11 @@
+---
+fluxo: export
+variante: avancado
+autor: orquestrador-ai
+data: 2025-12-30
+changelog:
+  - 2025-12-30: Adição de cabeçalho YAML para governança e rastreabilidade.
+---
 Você recebe uma lista de fotos relacionadas (mesmo job/evento). Use visão + metadados para
 selecionar as imagens finais de entrega.
 

@@ -1,3 +1,30 @@
+class IMcpClient:
+    """
+    Interface para comunicação com o servidor MCP (Lua).
+    Permite mocks, testes e extensão futura.
+    """
+    def initialize(self):
+        raise NotImplementedError
+
+    def list_tools(self):
+        raise NotImplementedError
+
+    def call_tool(self, name: str, arguments: Optional[dict] = None):
+        raise NotImplementedError
+
+    def close(self):
+        raise NotImplementedError
+
+    # Métodos utilitários opcionais:
+    def start(self):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+        return False
 from __future__ import annotations
 
 import base64
@@ -89,6 +116,7 @@ class VisionImage:
 
 
 class McpClient:
+        # Implementa IMcpClient para permitir polimorfismo e mocks
     def __init__(
         self,
         command: str,

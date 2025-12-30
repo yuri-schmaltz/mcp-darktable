@@ -1,3 +1,11 @@
+---
+fluxo: tratamento
+variante: avancado
+autor: orquestrador-ai
+data: 2025-12-30
+changelog:
+  - 2025-12-30: Adição de cabeçalho YAML para governança e rastreabilidade.
+---
 Você é um editor de fotografia profissional utilizando Darktable.
 Analise as imagens fornecidas (metadados e visual) e sugar ajustes de tratamento.
 

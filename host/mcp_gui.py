@@ -66,7 +66,11 @@ class MCPGui(QMainWindow):
     collections_signal = Signal(list)
     progress_update_signal = Signal(int, int, str)  # (current, total, message)
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        mcp_client_factory=None,
+        llm_provider_factory=None,
+    ) -> None:
         super().__init__()
 
         self.setWindowTitle("Darktable MCP")
@@ -81,6 +85,19 @@ class MCPGui(QMainWindow):
             r"([A-Za-z]:\\[^\n]+?\.(?:jpe?g|png|tiff?|bmp|webp)|/[^\n]+?\.(?:jpe?g|png|tiff?|bmp|webp))",
             re.IGNORECASE,
         )
+
+        # Fábricas para injeção de dependências (testes/mocks)
+        from common import McpClient, DT_SERVER_CMD
+        from mcp_host_ollama import OLLAMA_MODEL, OLLAMA_URL, PROTOCOL_VERSION as MCP_PROTOCOL_VERSION
+        self._mcp_client_factory = mcp_client_factory or (
+            lambda: McpClient(
+                DT_SERVER_CMD,
+                MCP_PROTOCOL_VERSION,
+                GUI_CLIENT_INFO,
+            )
+        )
+        # LLMProvider será injetado em patch posterior
+        self._llm_provider_factory = llm_provider_factory
 
         self.log_signal.connect(self._append_log_ui)
         self.status_signal.connect(self._set_status_ui)
@@ -1523,25 +1540,17 @@ class MCPGui(QMainWindow):
         self._run_async("Consultando darktable...", task)
 
     def _fetch_available_models(self, host: str, url: str) -> list[str]:
-        # Host is always ollama now
-        return self._fetch_ollama_models(url)
-
-    def _fetch_ollama_models(self, url: str) -> list[str]:
-        base = url.rstrip("/") or OLLAMA_URL
-        tags_url = f"{base}/api/tags"
-
-        try:
-            resp = requests.get(tags_url, timeout=5)
-            resp.raise_for_status()
-        except requests.exceptions.RequestException as exc:
-            raise RuntimeError(
-                f"Falha ao consultar modelos do Ollama em {tags_url}. "
-                "Verifique a URL e se o servidor está em execução."
-            ) from exc
-
-        data = resp.json()
-        models = [m.get("name", "") for m in data.get("models", []) if m.get("name")]
-        return models
+        """Consulta modelos disponíveis usando a interface ILLMProvider."""
+        if not self._llm_provider_factory:
+            raise RuntimeError("Fábrica de LLMProvider não configurada na GUI.")
+        provider = self._llm_provider_factory(url=url, model="", timeout=10)
+        # Assume que provider tem método list_models()
+        if hasattr(provider, "list_models"):
+            return provider.list_models()
+        # Fallback: tenta método compatível
+        if hasattr(provider, "fetch_models"):
+            return provider.fetch_models()
+        raise NotImplementedError("O provider LLM não implementa list_models/fetch_models.")
 
     @Slot(list)
     def _update_model_options(self, models: list[str]) -> None:
@@ -1579,30 +1588,33 @@ class MCPGui(QMainWindow):
         
         def task() -> None:
             import time
-            from common import list_available_collections, McpClient, _find_appimage, DT_SERVER_CMD
-            
-            self._append_log("[dt] Buscando coleções do Darktable...")
-            try:
-                appimage = _find_appimage()
-                with McpClient(DT_SERVER_CMD, MCP_PROTOCOL_VERSION, GUI_CLIENT_INFO, appimage_path=appimage) as client:
-                    client.initialize()
-                    collections_data = list_available_collections(client)
-                    
-                collections = [c.get("path", "") for c in collections_data if c.get("path")]
-                self._append_log(f"[dt] {len(collections)} coleção(ões) encontrada(s).")
-                
-                # Update cache
-                self._collections_cache = (time.time(), collections)
-                
-                self.status_signal.emit(f"{len(collections)} coleção(ões) disponível(is).")
-                self.collections_signal.emit(collections)
-                
-            except Exception as e:
-                self._append_log(f"[erro] Falha ao buscar coleções: {e}")
-                self.status_signal.emit("Erro ao buscar coleções.")
-                self.collections_signal.emit([])
+            from common import list_available_collections, _find_appimage
 
-        self._run_async("Buscando coleções...", task)
+            self._append_log("[dt] Buscando coleções do Darktable...")
+
+            def task():
+                try:
+                    appimage = _find_appimage()
+                    # Usa a fábrica injetada para criar o client (pode ser mock)
+                    with self._mcp_client_factory() as client:
+                        client.initialize()
+                        collections_data = list_available_collections(client)
+
+                    collections = [c.get("path", "") for c in collections_data if c.get("path")]
+                    self._append_log(f"[dt] {len(collections)} coleção(ões) encontrada(s).")
+
+                    # Update cache
+                    self._collections_cache = (time.time(), collections)
+
+                    self.status_signal.emit(f"{len(collections)} coleção(ões) disponível(is).")
+                    self.collections_signal.emit(collections)
+
+                except Exception as e:
+                    self._append_log(f"[erro] Falha ao buscar coleções: {e}")
+                    self.status_signal.emit("Erro ao buscar coleções.")
+                    self.collections_signal.emit([])
+
+            self._run_async("Buscando coleções...", task)
 
     @Slot(list)
     def _populate_collections(self, collections: list[str]) -> None:

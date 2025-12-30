@@ -1,3 +1,11 @@
+---
+fluxo: tagging
+variante: avancado
+autor: orquestrador-ai
+data: 2025-12-30
+changelog:
+  - 2025-12-30: Adição de cabeçalho YAML para governança e rastreabilidade.
+---
 Você recebe fotos com metadados e (quando disponível) a própria imagem. Crie uma taxonomia
 mais detalhada de tags de job/projeto, respeitando o formato "job:<categoria>[:subgrupo]".
 

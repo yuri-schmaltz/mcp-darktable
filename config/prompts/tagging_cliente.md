@@ -1,3 +1,11 @@
+---
+fluxo: tagging
+variante: cliente
+autor: orquestrador-ai
+data: 2025-12-30
+changelog:
+  - 2025-12-30: Adição de cabeçalho YAML para governança e rastreabilidade.
+---
 Você recebe uma lista de fotos com metadados (id, path, filename, rating, colorlabels) e, quando
 disponível, a própria imagem é enviada em mensagens multimodais. Use a imagem como base e os
 metadados apenas como apoio.

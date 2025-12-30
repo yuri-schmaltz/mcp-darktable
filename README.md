@@ -1,5 +1,7 @@
 # darktable-mcp-batch
 
+> 📘 Consulte também: [docs/runbook-operacional.md](docs/runbook-operacional.md) para troubleshooting, setup rápido e checklist de release.
+
 Servidor MCP em Lua para controlar o darktable + hosts Python para usar LLMs locais (Ollama / LM Studio)
 em fluxos de tratamento em lote (rating, tagging, export).
 

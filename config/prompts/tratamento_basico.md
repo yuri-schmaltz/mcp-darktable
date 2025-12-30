@@ -1,3 +1,11 @@
+---
+fluxo: tratamento
+variante: basico
+autor: orquestrador-ai
+data: 2025-12-30
+changelog:
+  - 2025-12-30: Adição de cabeçalho YAML para governança e rastreabilidade.
+---
 Analise as imagens e sugira classificação e organização básica.
 
 Retorne um JSON no formato:

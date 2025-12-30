@@ -1,3 +1,11 @@
+---
+fluxo: export
+variante: job
+autor: orquestrador-ai
+data: 2025-12-30
+changelog:
+  - 2025-12-30: Adição de cabeçalho YAML para governança e rastreabilidade.
+---
 Você recebe uma lista de fotos de um mesmo contexto (ex.: um job ou evento).
 
 Cada foto tem metadados (id, path, filename, rating, colorlabels) e, quando disponível, a imagem
